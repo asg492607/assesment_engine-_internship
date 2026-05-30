@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import uuid
@@ -642,3 +644,16 @@ def get_candidates(db: Session = Depends(get_db)):
                 "timestamp": r.calculated_at.isoformat()
             })
     return out
+
+# Serve Frontend Static UI securely (Explicitly to prevent source file leakage)
+@app.get("/")
+def serve_index():
+    return FileResponse("index.html")
+
+@app.get("/app.js")
+def serve_js():
+    return FileResponse("app.js")
+
+@app.get("/styles.css")
+def serve_css():
+    return FileResponse("styles.css")
