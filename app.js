@@ -340,10 +340,6 @@ startSimBtn.addEventListener("click", async () => {
   simulationState.difficulty = difficultySelect.value;
   const portfolioText = document.getElementById("portfolio-skills").value;
   
-  // Reset proctoring variables for new session
-  proctorTabSwitches = 0;
-  proctorCopyPastes = 0;
-  
   // Reset proctoring and behaviour variables for new session
   proctorTabSwitches = 0;
   proctorCopyPastes = 0;

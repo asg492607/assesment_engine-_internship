@@ -56,11 +56,13 @@ def store_candidate_vector(candidate_id: str, scores: dict, role_title: str):
             scores.get("Company Match", 75) / 100.0,
         ]
         
+        import hashlib
+        stable_id = int(hashlib.sha256(candidate_id.encode()).hexdigest(), 16) % 10000000
         client.upsert(
             collection_name=collection_name,
             points=[
                 PointStruct(
-                    id=hash(candidate_id) % 10000000, # convert string to integer id
+                    id=stable_id, # convert string to a stable integer id
                     vector=vector,
                     payload={
                         "candidate_id": candidate_id,

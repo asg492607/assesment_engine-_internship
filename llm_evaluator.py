@@ -40,19 +40,20 @@ class ASTAnalyzer:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 classes += 1
+                decorators += len(node.decorator_list)
             elif isinstance(node, ast.AsyncFunctionDef):
                 async_funcs += 1
                 functions += 1
+                decorators += len(node.decorator_list)
             elif isinstance(node, ast.FunctionDef):
                 functions += 1
+                decorators += len(node.decorator_list)
             elif isinstance(node, ast.Try):
                 try_blocks += 1
             elif isinstance(node, (ast.For, ast.While)):
                 loops += 1
             elif isinstance(node, (ast.ListComp, ast.DictComp, ast.SetComp, ast.GeneratorExp)):
                 comprehensions += 1
-            elif isinstance(node, ast.decorator):
-                decorators += 1
                 
         # Calculate metric scores based on syntactic composition
         # Robust code handles errors (Try) and is structured (Classes/Functions)
