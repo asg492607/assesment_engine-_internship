@@ -1,3 +1,4 @@
+(() => {
 // API Configuration
 const API_BASE_URL = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1") || window.location.origin.includes("file:")
   ? "http://localhost:8000/api"
@@ -1134,4 +1135,4 @@ drawRadarChart({
   reasoning_intelligence: 0
 });
 addLog("Visual system ready. Click on any architecture layer to inspect details.", "system");
-
+})();
