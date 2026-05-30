@@ -8,7 +8,7 @@ import uuid
 import os
 from typing import List, Dict, Any
 
-from database import init_db, SessionLocal, Candidate, QuizResponse, HackathonSubmission, InterviewTranscript, IntelligenceReport, RecruiterConfig
+from database import init_db, SessionLocal, Candidate, QuizResponse, HackathonSubmission, InterviewTranscript, IntelligenceReport, JobPosting
 from tasks import run_intelligence_module, compile_final_scores
 from llm_evaluator import LLMJudge, ASTAnalyzer
 
@@ -37,8 +37,9 @@ def get_db():
 import json
 
 # Request Pydantic Schemas
-class RecruiterConfigSchema(BaseModel):
+class JobPostingSchema(BaseModel):
     role_title: str
+    description: str = ""
     difficulty_level: str
     weight_creativity: float
     weight_problem_solving: float
@@ -46,6 +47,9 @@ class RecruiterConfigSchema(BaseModel):
     weight_execution: float
     weight_reasoning: float
     portfolio_skills: str = "{}"
+
+class ApplyJobSchema(BaseModel):
+    job_id: int
 
 class QuizAnswerSchema(BaseModel):
     candidate_id: str
@@ -123,39 +127,40 @@ def build_portfolio_profile(skills_input: str, difficulty: str) -> str:
     }
     return json.dumps(profile)
 
-@app.post("/api/assessment/generate")
-def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get_db)):
-    """
-    Layer 1: Assessment Generator. Creates a recruiter configurations row
-    and starts a new candidate tracking workflow incorporating Portfolio Skill graphs.
-    """
-    # Save recruiter configuration
-    rec_cfg = RecruiterConfig(
-        role_title=config.role_title,
-        difficulty_level=config.difficulty_level,
-        weight_creativity=config.weight_creativity,
-        weight_problem_solving=config.weight_problem_solving,
-        weight_communication=config.weight_communication,
-        weight_execution=config.weight_execution,
-        weight_reasoning=config.weight_reasoning
-    )
-    db.add(rec_cfg)
+@app.post("/api/jobs")
+def create_job(job: JobPostingSchema, db: Session = Depends(get_db)):
+    """Recruiter creates a new Job Posting."""
+    db_job = JobPosting(**job.dict())
+    db.add(db_job)
     db.commit()
-    
-    # Starting difficulty based on recruiter target select: entry=2, mid=3, senior=4, lead=5
+    db.refresh(db_job)
+    return {"status": "success", "job_id": db_job.id, "message": "Job posted successfully"}
+
+@app.get("/api/jobs")
+def get_jobs(db: Session = Depends(get_db)):
+    """Candidate views available Job Postings."""
+    jobs = db.query(JobPosting).filter(JobPosting.status == "active").all()
+    return [{"id": j.id, "title": j.role_title, "difficulty": j.difficulty_level, "skills": j.portfolio_skills, "description": j.description} for j in jobs]
+
+@app.post("/api/assessment/apply")
+def apply_to_job(payload: ApplyJobSchema, db: Session = Depends(get_db)):
+    """Candidate applies to a specific job and initializes assessment pipeline."""
+    job = db.query(JobPosting).filter(JobPosting.id == payload.job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+        
     diff_map = {"entry": 2, "mid": 3, "senior": 4, "lead": 5}
-    start_diff = diff_map.get(config.difficulty_level, 3)
+    start_diff = diff_map.get(job.difficulty_level.lower(), 3)
     
-    # Generate Layer 0 Portfolio profile
-    profile_json = build_portfolio_profile(config.portfolio_skills, config.difficulty_level)
+    profile_json = build_portfolio_profile(job.portfolio_skills, job.difficulty_level)
     
-    # Generate unique candidate token
     cand_id = f"cand_{uuid.uuid4().hex[:6]}"
     candidate = Candidate(
         id=cand_id,
-        role_title=config.role_title,
-        difficulty_level=config.difficulty_level,
-        portfolio_skills=config.portfolio_skills,
+        job_id=job.id,
+        role_title=job.role_title,
+        difficulty_level=job.difficulty_level,
+        portfolio_skills=job.portfolio_skills,
         portfolio_profile=profile_json,
         current_quiz_step=1,
         current_quiz_difficulty=start_diff,
@@ -167,8 +172,8 @@ def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get
     return {
         "candidate_id": cand_id,
         "status": "initialized",
-        "recruiter_config_id": rec_cfg.id,
-        "message": f"Assessment generated custom-targeting skill graph: {config.portfolio_skills}."
+        "job_id": job.id,
+        "message": f"Application started for {job.role_title}."
     }
 
 # ADAPTIVE MULTI-LEVEL QUIZ QUESTION BANK

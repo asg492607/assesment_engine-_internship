@@ -15,23 +15,29 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class RecruiterConfig(Base):
-    __tablename__ = "recruiter_configs"
+class JobPosting(Base):
+    __tablename__ = "job_postings"
     
     id = Column(Integer, primary_key=True, index=True)
     role_title = Column(String, index=True)
+    description = Column(Text, default="")
+    portfolio_skills = Column(Text, default="{}")
     difficulty_level = Column(String, default="senior")
     weight_creativity = Column(Float, default=30.0)
     weight_problem_solving = Column(Float, default=25.0)
     weight_communication = Column(Float, default=20.0)
     weight_execution = Column(Float, default=15.0)
     weight_reasoning = Column(Float, default=10.0)
+    status = Column(String, default="active")
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    candidates = relationship("Candidate", back_populates="job")
 
 class Candidate(Base):
     __tablename__ = "candidates"
     
     id = Column(String, primary_key=True, index=True) # candidate ID e.g., cand_8410
+    job_id = Column(Integer, ForeignKey("job_postings.id"))
     role_title = Column(String)
     difficulty_level = Column(String)
     status = Column(String, default="initialized") # initialized, quiz_done, hackathon_done, interview_done, analyzing, completed
@@ -55,6 +61,7 @@ class Candidate(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
+    job = relationship("JobPosting", back_populates="candidates")
     quiz_responses = relationship("QuizResponse", back_populates="candidate")
     hackathon_submission = relationship("HackathonSubmission", uselist=False, back_populates="candidate")
     interview_transcript = relationship("InterviewTranscript", uselist=False, back_populates="candidate")
