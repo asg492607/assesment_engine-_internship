@@ -35,7 +35,7 @@ document.getElementById("btn-return-home").addEventListener("click", () => {
 // Helper for API
 async function makeRequest(endpoint, options = {}) {
   options.headers = options.headers || {};
-  if (!options.headers["Content-Type"] && !options.body instanceof FormData) {
+  if (!options.headers["Content-Type"] && !(options.body instanceof FormData)) {
     options.headers["Content-Type"] = "application/json";
   }
   const res = await fetch(`${API_BASE_URL}${endpoint}`, options);
