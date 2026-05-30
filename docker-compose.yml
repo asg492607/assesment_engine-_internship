@@ -8,13 +8,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/assessment_db
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_HOST=qdrant
     env_file:
       - .env
     depends_on:
-      - db
       - redis
       - qdrant
     volumes:
@@ -26,13 +24,11 @@ services:
       dockerfile: Dockerfile
     command: celery -A tasks.celery_app worker --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/assessment_db
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_HOST=qdrant
     env_file:
       - .env
     depends_on:
-      - db
       - redis
       - qdrant
     volumes:
@@ -43,17 +39,6 @@ services:
     ports:
       - "6379:6379"
 
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=assessment_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   qdrant:
     image: qdrant/qdrant:latest
     ports:
@@ -62,5 +47,4 @@ services:
       - qdrant_data:/qdrant/storage
 
 volumes:
-  postgres_data:
   qdrant_data:
