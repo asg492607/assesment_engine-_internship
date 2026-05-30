@@ -647,7 +647,11 @@ def get_candidates(db: Session = Depends(get_db)):
 
 # Serve Frontend Static UI securely (Explicitly to prevent source file leakage)
 @app.get("/")
-def serve_index():
+def serve_root():
+    return FileResponse("index.html")
+
+@app.get("/index.html")
+def serve_index_html():
     return FileResponse("index.html")
 
 @app.get("/app.js")
