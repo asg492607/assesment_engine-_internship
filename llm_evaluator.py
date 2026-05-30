@@ -132,17 +132,9 @@ class LLMJudge:
         prompt = f"Role: {role_title}\nCode Submission:\n{code_content}\nEvaluate syntax, robustness, modularity, and algorithmic efficiency."
         
         llm_result = cls._call_llm(prompt, system)
-        if llm_result:
-            return llm_result
-            
-        # Fail-safe local AST evaluation
-        ast_res = ASTAnalyzer.analyze_code(code_content)
-        return {
-            "problem_solving": ast_res["problem_solving"],
-            "execution": ast_res["execution"],
-            "architecture": ast_res["creativity"],
-            "summary": "Statically compiled and parsed via AST compiler tree."
-        }
+        if not llm_result:
+            raise ValueError("OpenAI API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
+        return llm_result
 
     @classmethod
     def evaluate_interview(cls, question: str, answer: str, role_title: str) -> dict:
@@ -153,19 +145,6 @@ class LLMJudge:
         prompt = f"Role: {role_title}\nQuestion: {question}\nCandidate Answer: {answer}\nEvaluate clarity, reasoning patterns, confidence level, and structural correctness."
         
         llm_result = cls._call_llm(prompt, system)
-        if llm_result:
-            return llm_result
-            
-        # Semantic fallback score calculation
-        comm = min(60 + len(answer) * 0.4, 95)
-        reasoning = 90 if ("pool" in answer or "limit" in answer or "asynchronous" in answer) else 70
-        confidence = 85 if len(answer) > 40 else 70
-        decision = 80 if ("connection" in answer or "handling" in answer) else 70
-        
-        return {
-            "reasoning": int(reasoning),
-            "confidence": int(confidence),
-            "communication": int(comm),
-            "decision_quality": int(decision),
-            "summary": "Transcript analyzed via semantic keyword and size heuristics."
-        }
+        if not llm_result:
+            raise ValueError("OpenAI API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
+        return llm_result

@@ -521,7 +521,6 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
     modules = ["Knowledge", "Problem Solving", "Creativity", "Communication", "Reasoning", "Execution", "Career Readiness", "Company Match"]
     
     # We will trigger the background tasks asynchronously using a Celery Chord
-    celery_failed = False
     task_results = []
     try:
         from celery import chord
@@ -535,43 +534,20 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
         task_results = [res.id]
         print(f"Celery chord launched successfully: {res.id}")
     except Exception as e:
-        print(f"Celery task dispatch failed: {str(e)}. Running sync fallback analysis.")
-        celery_failed = True
-        
-    if celery_failed:
-        # Run local fallback directly in database
-        quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate_id).all()
-        hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate_id).first()
-        int_trans_list = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).all()
-        
-        quiz_score = sum([q.score_assigned for q in quiz_res]) / len(quiz_res) if quiz_res else 75
-        hack_solve = hack_sub.problem_solving_score if hack_sub else 70
-        hack_create = hack_sub.creativity_score if hack_sub else 70
-        
-        if int_trans_list:
-            int_comm = sum([t.communication_score for t in int_trans_list]) / len(int_trans_list)
-            int_reason = sum([t.reasoning_score for t in int_trans_list]) / len(int_trans_list)
-        else:
-            int_comm = 70
-            int_reason = 70
-        
-        results = [
-            {"module": "Knowledge", "score": quiz_res[0].score_assigned if quiz_res else 75},
-            {"module": "Problem Solving", "score": hack_solve},
-            {"module": "Creativity", "score": hack_create},
-            {"module": "Communication", "score": int_comm},
-            {"module": "Reasoning", "score": int_reason},
-            {"module": "Execution", "score": int((hack_solve + hack_create) / 2)},
-            {"module": "Career Readiness", "score": int((quiz_score + int_reason) / 2) + 5},
-            {"module": "Company Match", "score": int(int_comm * 0.4 + quiz_score * 0.6)}
-        ]
-        compile_final_scores(results, candidate_id, weights)
+        print(f"Celery task dispatch failed: {str(e)}.")
+        # Roll back candidate status
+        candidate.status = "interview_done"
+        db.commit()
+        raise HTTPException(
+            status_code=503, 
+            detail=f"Celery broker/worker offline. Asynchronous parallel analysis could not be started: {str(e)}"
+        )
     
     return {
         "candidate_id": candidate_id,
-        "status": "completed" if celery_failed else "analyzing",
+        "status": "analyzing",
         "task_ids": task_results,
-        "celery_broker_online": not celery_failed
+        "celery_broker_online": True
     }
 
 
@@ -581,40 +557,6 @@ def check_status(candidate_id: str, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
-    # Auto-compile for simple local database loop if it's currently analyzing
-    if candidate.status == "analyzing":
-        # Check if we should auto-transition to simulate Celery processing locally
-        # If Redis/Celery is not run by user, this serves as a robust auto-compilation fallback!
-        # Query results
-        quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate_id).all()
-        hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate_id).first()
-        int_trans_list = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).all()
-        
-        if quiz_res and hack_sub and int_trans_list:
-            int_comm = sum([t.communication_score for t in int_trans_list]) / len(int_trans_list)
-            int_reason = sum([t.reasoning_score for t in int_trans_list]) / len(int_trans_list)
-            
-            # Build mock worker results
-            results = [
-                {"module": "Knowledge", "score": quiz_res[0].score_assigned},
-                {"module": "Problem Solving", "score": hack_sub.problem_solving_score},
-                {"module": "Creativity", "score": hack_sub.creativity_score},
-                {"module": "Communication", "score": int(int_comm)},
-                {"module": "Reasoning", "score": int(int_reason)},
-                {"module": "Execution", "score": int((hack_sub.problem_solving_score + hack_sub.creativity_score) / 2)},
-                {"module": "Career Readiness", "score": int((quiz_res[0].score_assigned + int_reason) / 2) + 5},
-                {"module": "Company Match", "score": int(int_comm * 0.4 + quiz_res[0].score_assigned * 0.6)}
-            ]
-            rec_cfg = db.query(RecruiterConfig).order_by(RecruiterConfig.created_at.desc()).first()
-            weights = {
-                "weight_creativity": rec_cfg.weight_creativity if rec_cfg else 30.0,
-                "weight_problem_solving": rec_cfg.weight_problem_solving if rec_cfg else 25.0,
-                "weight_communication": rec_cfg.weight_communication if rec_cfg else 20.0,
-                "weight_execution": rec_cfg.weight_execution if rec_cfg else 15.0,
-                "weight_reasoning": rec_cfg.weight_reasoning if rec_cfg else 10.0,
-            }
-            compile_final_scores(results, candidate_id, weights)
-            
     return {"candidate_id": candidate_id, "status": candidate.status}
 
 

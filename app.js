@@ -1,7 +1,8 @@
 // API Configuration
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = window.location.origin.includes("localhost") || window.location.origin.includes("127.0.0.1") || window.location.origin.includes("file:")
+  ? "http://localhost:8000/api"
+  : `${window.location.origin}/api`;
 let currentCandidateId = null;
-let useLocalFallback = false;
 
 // Proctoring Layer Telemetry Tracker
 let proctorTabSwitches = 0;
@@ -56,15 +57,19 @@ document.addEventListener("paste", (e) => {
 });
 
 async function syncProctoringTelemetry() {
-  if (!currentCandidateId || useLocalFallback) return;
-  await makeRequest("/assessment/telemetry", {
-    method: "POST",
-    body: JSON.stringify({
-      candidate_id: currentCandidateId,
-      tab_switches: proctorTabSwitches,
-      copy_pastes: proctorCopyPastes
-    })
-  });
+  if (!currentCandidateId) return;
+  try {
+    await makeRequest("/assessment/telemetry", {
+      method: "POST",
+      body: JSON.stringify({
+        candidate_id: currentCandidateId,
+        tab_switches: proctorTabSwitches,
+        copy_pastes: proctorCopyPastes
+      })
+    });
+  } catch (e) {
+    console.error("Telemetry sync failed:", e);
+  }
 }
 
 
@@ -318,19 +323,24 @@ function showScreen(screenId) {
 
 // REST helper
 async function makeRequest(endpoint, options = {}) {
-  if (useLocalFallback) return null;
   try {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: { "Content-Type": "application/json" },
       ...options
     });
-    if (!res.ok) throw new Error("API responded with an error status code.");
+    if (!res.ok) {
+      const errText = await res.text();
+      let msg = "Request failed.";
+      try {
+        const errJson = JSON.parse(errText);
+        msg = errJson.detail || msg;
+      } catch(e) {}
+      throw new Error(msg);
+    }
     return await res.json();
   } catch (err) {
-    console.warn("Backend API not reachable. Switching to client-side offline mock simulation.");
-    useLocalFallback = true;
-    addLog("Warning: FastAPI Backend not reachable. Flowing on client-side simulation.", "warning");
-    return null;
+    addLog(`API Network Error [${endpoint}]: ${err.message}`, "warning");
+    throw err;
   }
 }
 
@@ -373,9 +383,9 @@ startSimBtn.addEventListener("click", async () => {
     addLog(`Real Backend Created Candidate: [${currentCandidateId}]`, "success");
     addLog("Layer 1 Successful: Custom assessment blueprint stored in DB.", "success");
   } else {
-    // Local offline mock ID
-    currentCandidateId = "cand_offline_" + Math.random().toString(36).substring(7);
-    addLog(`Running offline mode. Mock Candidate: [${currentCandidateId}]`, "system");
+    addLog("Error: Could not initialize candidate session on the backend.", "warning");
+    alert("Could not initialize candidate session. Make sure the FastAPI backend is running.");
+    return;
   }
   
   setTimeout(() => {
@@ -389,42 +399,19 @@ async function startQuiz(quizStep = 1) {
   showScreen("screen-quiz");
   
   let quizData = null;
-  if (!useLocalFallback) {
+  try {
     quizData = await makeRequest(`/quiz/question?candidate_id=${currentCandidateId}`);
+  } catch (err) {
+    addLog(`Error fetching quiz question: ${err.message}`, "warning");
+    alert("Error fetching quiz question from the API.");
+    return;
   }
   
-  // Fallback to local schema if server offline
-  if (!quizData || quizData.status === "completed") {
-    if (quizStep > 3) {
-      addLog("Layer 2 Successful: Adaptive Quiz completed.", "success");
-      addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
-      startHackathon();
-      return;
-    }
-    
-    // Offline local loop questions
-    quizData = {
-      step: quizStep,
-      difficulty: 3,
-      question: quizStep === 1 
-        ? "How would you optimize a slow database query involving a massive join operation?" 
-        : quizStep === 2 
-        ? "What is the primary function of index lookup in relational databases?" 
-        : "Which HTTP status code represents a successful REST payload creation?",
-      options: quizStep === 1 ? [
-        { text: "Add index constraints on foreign keys and rewrite the query using a specific execution path.", score: 95 },
-        { text: "Add memory caching via Redis to completely bypass the database layer.", score: 80 },
-        { text: "Split the massive table into several sub-tables manually and run queries in parallel.", score: 65 }
-      ] : quizStep === 2 ? [
-        { text: "To speed up data retrieval operations by using lookup structures.", score: 95 },
-        { text: "To encrypt database columns securely against unauthorized table access.", score: 40 },
-        { text: "To enforce unique primary keys automatically inside every table.", score: 70}
-      ] : [
-        { text: "201 Created", score: 95 },
-        { text: "200 OK", score: 80 },
-        { text: "202 Accepted", score: 70 }
-      ]
-    };
+  if (quizData.status === "completed" || quizStep > 3) {
+    addLog("Layer 2 Successful: Adaptive Quiz completed.", "success");
+    addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
+    startHackathon();
+    return;
   }
   
   // Update header text to show adaptive progress
@@ -452,7 +439,7 @@ async function startQuiz(quizStep = 1) {
       let nextStep = quizStep + 1;
       let apiDone = false;
       
-      if (!useLocalFallback) {
+      try {
         const res = await makeRequest("/quiz/submit", {
           method: "POST",
           body: JSON.stringify({
@@ -465,16 +452,19 @@ async function startQuiz(quizStep = 1) {
         if (res && res.candidate_status === "quiz_done") {
           apiDone = true;
         }
+      } catch (err) {
+        addLog(`Error submitting quiz answer: ${err.message}`, "warning");
+        alert("Error submitting quiz answer.");
+        return;
       }
       
       addLog(`Quiz Step ${quizData.step} Answered. Option Score: ${opt.score}%`, "system");
       
       if (apiDone || nextStep > 3) {
-        addLog(`Layer 2 Result: Quiz completed. Final adapted knowledge rating: ${simulationState.candidateScores.knowledge}%`, "success");
+        addLog("Layer 2 Successful: Adaptive Quiz completed.", "success");
         addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
         startHackathon();
       } else {
-        // Load next question in adaptive loop
         startQuiz(nextStep);
       }
     };
@@ -502,7 +492,7 @@ function startHackathon() {
     simulationState.candidateScores.creativity = creativityFactor;
     simulationState.candidateScores.solving = problemSolvingFactor;
     
-    if (!useLocalFallback) {
+    try {
       await makeRequest("/hackathon/submit", {
         method: "POST",
         body: JSON.stringify({
@@ -515,6 +505,10 @@ function startHackathon() {
           journey: hackJourney
         })
       });
+    } catch (err) {
+      addLog(`Error submitting hackathon project: ${err.message}`, "warning");
+      alert("Error submitting hackathon assignment.");
+      return;
     }
     
     addLog(`Layer 3 Result: Hackathon submission completed (${lines} lines of code).`, "success");
@@ -524,7 +518,6 @@ function startHackathon() {
   };
 }
 
-// Layer 4 Interview
 // Layer 4 Interview
 function startInterview() {
   showScreen("screen-interview");
@@ -536,31 +529,18 @@ function startInterview() {
   
   async function loadNextQuestion() {
     replyInput.value = "";
-    if (useLocalFallback) {
-      if (currentStep === 1) {
-        qBox.textContent = "Your database architecture conceptual answer was basic. Can you explain how you would handle query plans manually?";
-      } else if (currentStep === 2) {
-        qBox.textContent = "Looking at your code submission, it uses a very direct, synchronous approach. How would you refactor this to support async concurrency?";
-      } else if (currentStep === 3) {
-        qBox.textContent = "Finally, when deploying this solution to a highly available production environment, how do you handle monitoring, fallback safety, and logging?";
-      } else {
+    try {
+      const data = await makeRequest(`/interview/question?candidate_id=${currentCandidateId}`);
+      if (data.status === "completed" || data.step > 3) {
         finishInterview();
+      } else {
+        currentStep = data.step;
+        qBox.textContent = data.question;
       }
-    } else {
-      try {
-        const data = await makeRequest(`/interview/question?candidate_id=${currentCandidateId}`);
-        if (data.status === "completed" || data.step > 3) {
-          finishInterview();
-        } else {
-          currentStep = data.step;
-          qBox.textContent = data.question;
-        }
-      } catch (err) {
-        console.error("Failed to load interview question:", err);
-        addLog("Error loading dynamic interview question. Falling back to local templates.", "warning");
-        useLocalFallback = true;
-        loadNextQuestion();
-      }
+    } catch (err) {
+      console.error("Failed to load interview question:", err);
+      addLog(`Error loading interview question: ${err.message}`, "warning");
+      alert("Error loading interview question from API.");
     }
   }
 
@@ -588,27 +568,24 @@ function startInterview() {
       (simulationState.candidateScores.reasoning * (currentStep - 1) + reasoningScore) / currentStep
     );
     
-    if (!useLocalFallback) {
-      try {
-        const res = await makeRequest("/interview/reply", {
-          method: "POST",
-          body: JSON.stringify({
-            candidate_id: currentCandidateId,
-            reply_content: text
-          })
-        });
-        
-        if (res.candidate_status === "interview_done" || res.next_step > 3) {
-          finishInterview();
-          return;
-        }
-        currentStep = res.next_step;
-      } catch (err) {
-        console.error("Failed to submit reply:", err);
-        currentStep++;
+    try {
+      const res = await makeRequest("/interview/reply", {
+        method: "POST",
+        body: JSON.stringify({
+          candidate_id: currentCandidateId,
+          reply_content: text
+        })
+      });
+      
+      if (res.candidate_status === "interview_done" || res.next_step > 3) {
+        finishInterview();
+        return;
       }
-    } else {
-      currentStep++;
+      currentStep = res.next_step;
+    } catch (err) {
+      console.error("Failed to submit reply:", err);
+      alert("Error submitting interview reply.");
+      return;
     }
     
     if (currentStep <= 3) {
@@ -635,12 +612,19 @@ async function runCeleryWorkers() {
   
   addLog("Firing parallel Celery workers across 8 modules...", "info");
   
-  if (!useLocalFallback) {
-    // Trigger Celery jobs in the Python backend
+  try {
     await makeRequest(`/assessment/trigger_analysis?candidate_id=${currentCandidateId}`, {
       method: "POST"
     });
+  } catch (err) {
+    addLog(`Error triggering Celery analysis: ${err.message}`, "error");
+    alert(`Could not trigger analysis. Details: ${err.message}`);
+    return;
   }
+  
+  let staggerFinished = false;
+  let backendFinished = false;
+  let pollInterval = null;
   
   modules.forEach((mod, index) => {
     const badge = document.createElement("div");
@@ -658,14 +642,38 @@ async function runCeleryWorkers() {
       addLog(`Celery Worker: ${mod} module completed analysis.`, "system");
       
       if (index === modules.length - 1) {
-        setTimeout(() => {
-          addLog("Layer 5 Successful: All 8 parallel modules calculated.", "success");
-          addLog("Running Layer 6: Dynamic Scoring Calculation...", "info");
-          finalizeAssessment();
-        }, 500);
+        staggerFinished = true;
+        checkCompletion();
       }
-    }, 350 * (index + 1));
+    }, 400 * (index + 1));
   });
+  
+  pollInterval = setInterval(async () => {
+    try {
+      const statusData = await makeRequest(`/assessment/status/${currentCandidateId}`);
+      if (statusData && statusData.status === "completed") {
+        backendFinished = true;
+        clearInterval(pollInterval);
+        checkCompletion();
+      } else if (statusData && (statusData.status === "failed" || statusData.status === "error")) {
+        clearInterval(pollInterval);
+        addLog("Celery background analysis failed on the server.", "error");
+        alert("Celery analysis failed on the server. Please check backend/Celery logs.");
+      }
+    } catch (err) {
+      clearInterval(pollInterval);
+      addLog(`Error polling analysis status: ${err.message}`, "error");
+      alert(`Error polling status: ${err.message}`);
+    }
+  }, 1500);
+  
+  function checkCompletion() {
+    if (staggerFinished && backendFinished) {
+      addLog("Layer 5 Successful: All 8 parallel modules calculated.", "success");
+      addLog("Running Layer 6: Dynamic Scoring Calculation...", "info");
+      finalizeAssessment();
+    }
+  }
 }
 
 // Final Report Calculations & Render
@@ -674,94 +682,18 @@ async function finalizeAssessment() {
   
   let reportData = null;
   
-  if (!useLocalFallback) {
-    // Wait for the backend to auto-process and retrieve report
-    // Poll status first
-    let statusData = await makeRequest(`/assessment/status/${currentCandidateId}`);
-    if (statusData && statusData.status === "completed") {
-      reportData = await makeRequest(`/assessment/report/${currentCandidateId}`);
-    } else {
-      // Small delay and retry
-      await new Promise(r => setTimeout(r, 1000));
-      reportData = await makeRequest(`/assessment/report/${currentCandidateId}`);
-    }
+  try {
+    reportData = await makeRequest(`/assessment/report/${currentCandidateId}`);
+  } catch (err) {
+    addLog(`Error retrieving report: ${err.message}`, "error");
+    alert(`Could not fetch the completed report from the backend. Details: ${err.message}`);
+    return;
   }
   
-  // Offline calculation logic if API failed/unreachable
   if (!reportData) {
-    const weights = simulationState.weights;
-    const scores = simulationState.candidateScores;
-    const totalWeight = weights.creativity + weights.problemSolving + weights.communication + weights.execution + weights.reasoning;
-    const executionScore = Math.round((scores.solving + scores.creativity) / 2);
-    
-    const finalScore = Math.round(
-      ((scores.creativity * weights.creativity) +
-      (scores.solving * weights.problemSolving) +
-      (scores.communication * weights.communication) +
-      (executionScore * weights.execution) +
-      (scores.reasoning * weights.reasoning)) / (totalWeight || 1)
-    );
-    
-    reportData = {
-      candidate_id: currentCandidateId,
-      role_title: simulationState.role,
-      difficulty_level: simulationState.difficulty,
-      match_score_percentage: finalScore,
-      intelligence_breakdown: {
-        knowledge_intelligence: scores.knowledge,
-        problem_solving_intelligence: scores.solving,
-        creativity_intelligence: scores.creativity,
-        communication_intelligence: scores.communication,
-        execution_intelligence: executionScore,
-        reasoning_intelligence: scores.reasoning,
-        career_readiness: Math.round((scores.knowledge + scores.reasoning) / 2) + 5,
-        company_match: Math.round((scores.communication * 0.4) + (scores.knowledge * 0.6))
-      },
-      report_feedback: {
-        strengths: finalScore >= 80 ? "Exceptional analytical depth, architectural safety logic, clean abstraction models." : "Reliable logical flow, solid documentation, good execution speed.",
-        weaknesses: finalScore >= 80 ? "Prone to over-engineering simple pipeline loops; could choose more standard constructs." : "Inconsistent coverage of structural edge cases in heavy async systems."
-      },
-      storage_references: {
-        postgres_transaction_id: "tx_offline_transaction_id_81a82f",
-        qdrant_vector_id: "vec_offline_vector_id_331e",
-        minio_hackathon_bucket_url: "s3://assessments/submissions/offline_src.tar.gz"
-      },
-      portfolio_profile: {
-        skills: simulationState.role.includes("Python") ? ["Python", "FastAPI", "PostgreSQL"] : ["JavaScript", "React", "Node.js"],
-        experience_level: simulationState.difficulty.toUpperCase(),
-        domains: ["Web Systems", "Asynchronous Pipelines"],
-        projects: [
-          {name: "Task Dispatcher Simulator", description: "Created an interactive flow rendering microservices pipeline."}
-        ],
-        strength_signals: ["Excellent structural modularity"],
-        learning_signals: ["Actively refining testing frameworks"]
-      },
-      telemetry_journey: hackJourney.length > 0 ? hackJourney : [
-        {time: 2, action: "typed"},
-        {time: 5, action: "typed"},
-        {time: 12, action: "pasted"},
-        {time: 18, action: "deleted"}
-      ],
-      behavioral_intelligence: {
-        thinking_time: hackJourney.length > 0 ? 80 : 65,
-        exploration: hackDeletions > 0 ? 75 : 60,
-        confidence: hackKeypresses > 0 ? 85 : 70,
-        ai_dependency: hackPastedChars > 100 ? 60 : 15
-      },
-      matchmaking_intelligence: {
-        role_fit: finalScore,
-        culture_fit: 82,
-        learning_velocity: 80,
-        growth_potential: 85,
-        recommended_roles: simulationState.role.includes("Python") ? 
-          ["Backend Engineer", "Platform Engineer", "API Specialist"] : 
-          ["Frontend Engineer", "UI Developer", "Fullstack Architect"]
-      },
-      system_metadata: {
-        engine_version: "2.1-LlamaAgentOffline",
-        timestamp_processed: new Date().toISOString()
-      }
-    };
+    addLog("No report data received from backend.", "error");
+    alert("No report data returned from server. Check backend logs.");
+    return;
   }
   
   addLog("Layer 7 Successful: DB records written. Embedding synced to vector database.", "success");
@@ -771,7 +703,9 @@ async function finalizeAssessment() {
   renderCandidateReport(reportData);
   
   // Refresh recruiter talent pool database records
-  await loadTalentPool();
+  if (typeof loadTalentPool === "function") {
+    await loadTalentPool();
+  }
   
   showScreen("screen-idle");
   addLog("--- WORKFLOW COMPLETED: SUCCESSFUL REPORT DISPATCH ---", "success");
