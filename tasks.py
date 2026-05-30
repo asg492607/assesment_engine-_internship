@@ -66,7 +66,7 @@ def run_intelligence_module(candidate_id: str, module_name: str):
         db.close()
 
 @celery_app.task
-def compile_final_scores(candidate_id: str, results_list: list, weights: dict):
+def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
     """
     Combines the parallel module scores using custom recruiter priority weights,
     writes the final IntelligenceReport row to DB, and completes the pipeline.

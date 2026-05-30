@@ -349,7 +349,8 @@ def reply_interview(payload: InterviewReplySchema, db: Session = Depends(get_db)
 def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
     """
     Layer 5: Asynchronous Intelligence Analysis.
-    Fires the 8 Parallel Intelligence Modules inside Celery workers.
+    Fires the 8 Parallel Intelligence Modules inside Celery workers using a Chord,
+    releasing the main thread and updating status when final callback compiles.
     """
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
     if not candidate:
@@ -368,16 +369,22 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
         "weight_reasoning": rec_cfg.weight_reasoning if rec_cfg else 10.0,
     }
     
-    # Fire 8 tasks in parallel (represented via Celery group or standard tasks list)
     modules = ["Knowledge", "Problem Solving", "Creativity", "Communication", "Reasoning", "Execution", "Career Readiness", "Company Match"]
     
-    # We will trigger the background tasks asynchronously
-    task_results = []
+    # We will trigger the background tasks asynchronously using a Celery Chord
     celery_failed = False
+    task_results = []
     try:
-        for mod in modules:
-            res = run_intelligence_module.delay(candidate_id, mod)
-            task_results.append(res.id)
+        from celery import chord
+        
+        # Build signatures
+        header = [run_intelligence_module.signature((candidate_id, mod)) for mod in modules]
+        callback = compile_final_scores.signature((candidate_id, weights))
+        
+        # Trigger Chord
+        res = chord(header)(callback)
+        task_results = [res.id]
+        print(f"Celery chord launched successfully: {res.id}")
     except Exception as e:
         print(f"Celery task dispatch failed: {str(e)}. Running sync fallback analysis.")
         celery_failed = True
@@ -404,7 +411,7 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
             {"module": "Career Readiness", "score": int((quiz_score + int_reason) / 2) + 5},
             {"module": "Company Match", "score": int(int_comm * 0.4 + quiz_score * 0.6)}
         ]
-        compile_final_scores(candidate_id, results, weights)
+        compile_final_scores(results, candidate_id, weights)
     
     return {
         "candidate_id": candidate_id,
@@ -412,6 +419,7 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
         "task_ids": task_results,
         "celery_broker_online": not celery_failed
     }
+
 
 @app.get("/api/assessment/status/{candidate_id}")
 def check_status(candidate_id: str, db: Session = Depends(get_db)):
