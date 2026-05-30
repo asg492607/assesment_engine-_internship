@@ -7,6 +7,29 @@ let useLocalFallback = false;
 let proctorTabSwitches = 0;
 let proctorCopyPastes = 0;
 
+// Coding Behaviour Telemetry Tracker
+let hackKeypresses = 0;
+let hackDeletions = 0;
+let hackPastedChars = 0;
+
+// Setup coding textarea listener on load
+setTimeout(() => {
+  const hackArea = document.getElementById("hackathon-textarea");
+  if (hackArea) {
+    hackArea.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        hackDeletions++;
+      } else if (e.key.length === 1) { // Printable character
+        hackKeypresses++;
+      }
+    });
+    hackArea.addEventListener("paste", (e) => {
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      hackPastedChars += text.length;
+    });
+  }
+}, 500);
+
 // Proctoring Document Event Listeners
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -314,6 +337,13 @@ startSimBtn.addEventListener("click", async () => {
   proctorTabSwitches = 0;
   proctorCopyPastes = 0;
   
+  // Reset proctoring and behaviour variables for new session
+  proctorTabSwitches = 0;
+  proctorCopyPastes = 0;
+  hackKeypresses = 0;
+  hackDeletions = 0;
+  hackPastedChars = 0;
+  
   addLog("--- INITIALIZING ASSESSMENT ENGINE PIPELINE ---", "info");
   addLog("Assessment Integrity Layer Activated.", "success");
   addLog(`Layer 1: Parsing skills from portfolio graph: [${portfolioText}]`, "info");
@@ -472,7 +502,11 @@ function startHackathon() {
         method: "POST",
         body: JSON.stringify({
           candidate_id: currentCandidateId,
-          code_content: code
+          code_content: code,
+          keypresses: hackKeypresses,
+          deletions: hackDeletions,
+          pasted_chars: hackPastedChars,
+          idle_time: 15 // Mock standard typing session inactivity pacing
         })
       });
     }
@@ -703,6 +737,10 @@ function renderCandidateReport(reportData) {
       badge.style.color = "#ef4444";
     }
   }
+  
+  // Render coding behaviour patterns
+  document.getElementById("score-val-learning-pattern").textContent = b.learning_pattern || "Structured Builder";
+  document.getElementById("score-val-confidence-pattern").textContent = b.confidence_pattern || "Decisive";
   
   // Render dynamic SVG Radar chart profile
   drawRadarChart(b);

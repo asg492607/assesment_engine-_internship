@@ -52,6 +52,10 @@ class QuizAnswerSchema(BaseModel):
 class HackathonSubmitSchema(BaseModel):
     candidate_id: str
     code_content: str
+    keypresses: int = 0
+    deletions: int = 0
+    pasted_chars: int = 0
+    idle_time: int = 0
 
 class InterviewReplySchema(BaseModel):
     candidate_id: str
@@ -298,6 +302,13 @@ def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_d
         problem_solving_score=eval_res.get("problem_solving", 75)
     )
     db.add(submission)
+    
+    # Save behaviour telemetry to Candidate
+    candidate.telemetry_keypresses = payload.keypresses
+    candidate.telemetry_deletions = payload.deletions
+    candidate.telemetry_pasted_chars = payload.pasted_chars
+    candidate.telemetry_idle_time_seconds = payload.idle_time
+    
     candidate.status = "hackathon_done"
     db.commit()
     
@@ -512,7 +523,9 @@ def get_report(candidate_id: str, db: Session = Depends(get_db)):
             "career_readiness": report.score_career_readiness,
             "company_match": report.score_company_match,
             "authenticity_score": report.score_authenticity,
-            "assessment_integrity": report.integrity_risk_level
+            "assessment_integrity": report.integrity_risk_level,
+            "learning_pattern": report.learning_pattern,
+            "confidence_pattern": report.confidence_pattern
         },
         "report_feedback": {
             "strengths": report.strengths,

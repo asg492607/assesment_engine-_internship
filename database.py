@@ -43,6 +43,12 @@ class Candidate(Base):
     telemetry_tab_switches = Column(Integer, default=0)
     telemetry_copy_pastes = Column(Integer, default=0)
     
+    # Coding Behaviour Telemetry
+    telemetry_keypresses = Column(Integer, default=0)
+    telemetry_deletions = Column(Integer, default=0)
+    telemetry_pasted_chars = Column(Integer, default=0)
+    telemetry_idle_time_seconds = Column(Integer, default=0)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -106,6 +112,10 @@ class IntelligenceReport(Base):
     score_authenticity = Column(Integer, default=100)
     integrity_risk_level = Column(String, default="Low Risk")
     
+    # Coding Behaviour Metrics
+    learning_pattern = Column(String, default="Structured Builder")
+    confidence_pattern = Column(String, default="Decisive")
+    
     final_weighted_score = Column(Integer)
     strengths = Column(Text)
     weaknesses = Column(Text)
@@ -137,7 +147,18 @@ def init_db():
             db.commit()
             
             # Seed Candidate 1: cand_9240 (High Performer)
-            c1 = Candidate(id="cand_9240", role_title="Senior Python Architect", difficulty_level="senior", status="completed", telemetry_tab_switches=1, telemetry_copy_pastes=0)
+            c1 = Candidate(
+                id="cand_9240", 
+                role_title="Senior Python Architect", 
+                difficulty_level="senior", 
+                status="completed", 
+                telemetry_tab_switches=1, 
+                telemetry_copy_pastes=0,
+                telemetry_keypresses=280,
+                telemetry_deletions=12,
+                telemetry_pasted_chars=0,
+                telemetry_idle_time_seconds=15
+            )
             db.add(c1)
             
             qr1 = QuizResponse(candidate_id="cand_9240", question="Optimizing database queries?", selected_option="Add index constraints and rewrite joins.", score_assigned=95)
@@ -161,6 +182,8 @@ def init_db():
                 score_company_match=93,
                 score_authenticity=90,
                 integrity_risk_level="Low Risk",
+                learning_pattern="Structured Builder",
+                confidence_pattern="Decisive",
                 final_weighted_score=90,
                 strengths="Exceptional architectural safety patterns and code execution flow.",
                 weaknesses="Over-engineers helper pipelines."
@@ -168,7 +191,18 @@ def init_db():
             db.add(ir1)
             
             # Seed Candidate 2: cand_7102 (Mid Performer)
-            c2 = Candidate(id="cand_7102", role_title="Senior Python Architect", difficulty_level="senior", status="completed", telemetry_tab_switches=5, telemetry_copy_pastes=2)
+            c2 = Candidate(
+                id="cand_7102", 
+                role_title="Senior Python Architect", 
+                difficulty_level="senior", 
+                status="completed", 
+                telemetry_tab_switches=5, 
+                telemetry_copy_pastes=2,
+                telemetry_keypresses=90,
+                telemetry_deletions=48,
+                telemetry_pasted_chars=420,
+                telemetry_idle_time_seconds=60
+            )
             db.add(c2)
             
             qr2 = QuizResponse(candidate_id="cand_7102", question="Optimizing database queries?", selected_option="Add caching layer via Redis.", score_assigned=80)
@@ -192,6 +226,8 @@ def init_db():
                 score_company_match=79,
                 score_authenticity=50,
                 integrity_risk_level="Medium Risk",
+                learning_pattern="Copy-Paste Reliant",
+                confidence_pattern="Erratic",
                 final_weighted_score=76,
                 strengths="Steady execution rhythm, solid understanding of local session caching.",
                 weaknesses="Gaps in scale planning and socket stream pools."

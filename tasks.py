@@ -134,6 +134,27 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
         else:
             risk_level = "High Risk"
             
+        # Calculate Coding Behaviour Patterns
+        kps = candidate.telemetry_keypresses or 0
+        dls = candidate.telemetry_deletions or 0
+        pst = candidate.telemetry_pasted_chars or 0
+        
+        # Confidence Pattern: Hesitant, Erratic, Decisive
+        if (dls / max(1, kps)) >= 0.25:
+            conf_pattern = "Hesitant"
+        elif pst >= 200:
+            conf_pattern = "Erratic"
+        else:
+            conf_pattern = "Decisive"
+            
+        # Learning Pattern: Structured Builder, Exploratory Coder, Copy-Paste Reliant
+        if pst >= 300:
+            lrn_pattern = "Copy-Paste Reliant"
+        elif dls >= 50:
+            lrn_pattern = "Exploratory Coder"
+        else:
+            lrn_pattern = "Structured Builder"
+            
         report.score_knowledge = module_scores["Knowledge"]
         report.score_solving = module_scores["Problem Solving"]
         report.score_creativity = module_scores["Creativity"]
@@ -144,6 +165,8 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
         report.score_company_match = module_scores["Company Match"]
         report.score_authenticity = int(auth_score)
         report.integrity_risk_level = risk_level
+        report.learning_pattern = lrn_pattern
+        report.confidence_pattern = conf_pattern
         
         report.final_weighted_score = final_score
         report.strengths = strengths
