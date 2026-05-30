@@ -325,17 +325,66 @@ def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_d
         
     return {"status": "success", "candidate_status": candidate.status, "lines_processed": lines}
 
+def generate_dynamic_interview_question(candidate, db: Session) -> str:
+    step = candidate.current_interview_step or 1
+    
+    # Turn 1: Target conceptual / quiz performance
+    if step == 1:
+        quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate.id).all()
+        quiz_score = sum([q.score_assigned for q in quiz_res]) / len(quiz_res) if quiz_res else 75
+        if quiz_score < 80:
+            return "Your quiz results show some gaps in database and performance concepts. Can you explain how you would analyze and optimize a slow query execution plan manually?"
+        else:
+            return "You selected the optimal database query paths in the quiz. How would you design a connection pooling strategy to manage high peaks of database traffic?"
+            
+    # Turn 2: Target hackathon code implementation architecture
+    elif step == 2:
+        hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate.id).first()
+        solve_score = hack_sub.problem_solving_score if hack_sub else 70
+        if solve_score < 80:
+            return "Looking at your hackathon code submission, it uses a very direct, synchronous/standard approach. How would you refactor this code to support asynchronous processing, rate limiting, or higher concurrency?"
+        else:
+            return "Your hackathon submission had great structure. How would you handle scaling this code across multiple distributed worker nodes or caching state using Redis?"
+            
+    # Turn 3: Target deployment, monitoring, and production safety trade-offs
+    else:
+        return "Finally, when deploying this solution to a highly available production environment, how do you handle monitoring, fallback safety, and logging for unexpected exceptions?"
+
+@app.get("/api/interview/question")
+def get_interview_question(candidate_id: str, db: Session = Depends(get_db)):
+    """
+    Layer 4: AI Interview Engine. Yields dynamic prompts based on current_interview_step.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    if candidate.current_interview_step > 3:
+        return {"status": "completed", "message": "Interview completed."}
+        
+    question = generate_dynamic_interview_question(candidate, db)
+    return {
+        "candidate_id": candidate_id,
+        "step": candidate.current_interview_step,
+        "question": question
+    }
+
 @app.post("/api/interview/reply")
 def reply_interview(payload: InterviewReplySchema, db: Session = Depends(get_db)):
     """
-    Layer 4: AI Interview Engine. Logs reply and yields scores.
+    Layer 4: AI Interview Engine. Logs reply, evaluates scores, and increments turn.
+    Toggles status to interview_done on turn 3.
     """
     candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
+    current_step = candidate.current_interview_step or 1
+    if current_step > 3:
+        raise HTTPException(status_code=400, detail="Interview already completed")
+        
     # Retrieve question asked to evaluate
-    question = "How would you handle connection pooling during high peaks of traffic?"
+    question = generate_dynamic_interview_question(candidate, db)
     
     # Evaluate candidate answer using LLM Judge
     eval_res = LLMJudge.evaluate_interview(question, payload.reply_content, candidate.role_title)
@@ -348,11 +397,19 @@ def reply_interview(payload: InterviewReplySchema, db: Session = Depends(get_db)
         reasoning_score=eval_res.get("reasoning", 75)
     )
     db.add(transcript)
-    candidate.status = "interview_done"
+    
+    # Increment step
+    candidate.current_interview_step = current_step + 1
+    
+    # Set to interview_done only on finishing the 3rd turn
+    if candidate.current_interview_step > 3:
+        candidate.status = "interview_done"
+        
     db.commit()
     return {
         "status": "success", 
         "candidate_status": candidate.status,
+        "next_step": candidate.current_interview_step,
         "scores": {
             "communication": eval_res.get("communication", 75), 
             "reasoning": eval_res.get("reasoning", 75),
@@ -425,13 +482,18 @@ def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
         # Run local fallback directly in database
         quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate_id).all()
         hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate_id).first()
-        int_trans = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).first()
+        int_trans_list = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).all()
         
         quiz_score = sum([q.score_assigned for q in quiz_res]) / len(quiz_res) if quiz_res else 75
         hack_solve = hack_sub.problem_solving_score if hack_sub else 70
         hack_create = hack_sub.creativity_score if hack_sub else 70
-        int_comm = int_trans.communication_score if int_trans else 70
-        int_reason = int_trans.reasoning_score if int_trans else 70
+        
+        if int_trans_list:
+            int_comm = sum([t.communication_score for t in int_trans_list]) / len(int_trans_list)
+            int_reason = sum([t.reasoning_score for t in int_trans_list]) / len(int_trans_list)
+        else:
+            int_comm = 70
+            int_reason = 70
         
         results = [
             {"module": "Knowledge", "score": quiz_res[0].score_assigned if quiz_res else 75},
@@ -466,19 +528,22 @@ def check_status(candidate_id: str, db: Session = Depends(get_db)):
         # Query results
         quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate_id).all()
         hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate_id).first()
-        int_trans = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).first()
+        int_trans_list = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).all()
         
-        if quiz_res and hack_sub and int_trans:
+        if quiz_res and hack_sub and int_trans_list:
+            int_comm = sum([t.communication_score for t in int_trans_list]) / len(int_trans_list)
+            int_reason = sum([t.reasoning_score for t in int_trans_list]) / len(int_trans_list)
+            
             # Build mock worker results
             results = [
                 {"module": "Knowledge", "score": quiz_res[0].score_assigned},
                 {"module": "Problem Solving", "score": hack_sub.problem_solving_score},
                 {"module": "Creativity", "score": hack_sub.creativity_score},
-                {"module": "Communication", "score": int_trans.communication_score},
-                {"module": "Reasoning", "score": int_trans.reasoning_score},
+                {"module": "Communication", "score": int(int_comm)},
+                {"module": "Reasoning", "score": int(int_reason)},
                 {"module": "Execution", "score": int((hack_sub.problem_solving_score + hack_sub.creativity_score) / 2)},
-                {"module": "Career Readiness", "score": int((quiz_res[0].score_assigned + int_trans.reasoning_score) / 2) + 5},
-                {"module": "Company Match", "score": int(int_trans.communication_score * 0.4 + quiz_res[0].score_assigned * 0.6)}
+                {"module": "Career Readiness", "score": int((quiz_res[0].score_assigned + int_reason) / 2) + 5},
+                {"module": "Company Match", "score": int(int_comm * 0.4 + quiz_res[0].score_assigned * 0.6)}
             ]
             rec_cfg = db.query(RecruiterConfig).order_by(RecruiterConfig.created_at.desc()).first()
             weights = {
@@ -488,7 +553,7 @@ def check_status(candidate_id: str, db: Session = Depends(get_db)):
                 "weight_execution": rec_cfg.weight_execution if rec_cfg else 15.0,
                 "weight_reasoning": rec_cfg.weight_reasoning if rec_cfg else 10.0,
             }
-            compile_final_scores(candidate_id, results, weights)
+            compile_final_scores(results, candidate_id, weights)
             
     return {"candidate_id": candidate_id, "status": candidate.status}
 

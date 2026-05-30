@@ -28,14 +28,19 @@ def run_intelligence_module(candidate_id: str, module_name: str):
         # Base evaluations off candidate replies
         quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate_id).all()
         hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate_id).first()
-        int_trans = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).first()
+        int_trans = db.query(InterviewTranscript).filter(InterviewTranscript.candidate_id == candidate_id).all()
         
         # Calculate standard score baseline based on actual candidate data
         quiz_score = sum([q.score_assigned for q in quiz_res]) / len(quiz_res) if quiz_res else 75
         hack_solve = hack_sub.problem_solving_score if hack_sub else 70
         hack_create = hack_sub.creativity_score if hack_sub else 70
-        int_comm = int_trans.communication_score if int_trans else 70
-        int_reason = int_trans.reasoning_score if int_trans else 70
+        
+        if int_trans:
+            int_comm = sum([t.communication_score for t in int_trans]) / len(int_trans)
+            int_reason = sum([t.reasoning_score for t in int_trans]) / len(int_trans)
+        else:
+            int_comm = 70
+            int_reason = 70
         
         score = 75 # default
         if module_name == "Knowledge":

@@ -38,6 +38,7 @@ class Candidate(Base):
     portfolio_skills = Column(Text, default="{}") # Extracted skill graph JSON
     current_quiz_step = Column(Integer, default=1) # Quiz progress 1 to 3
     current_quiz_difficulty = Column(Integer, default=3) # Scale 1 to 5
+    current_interview_step = Column(Integer, default=1) # Interview progress 1 to 3
     
     # Proctoring Layer Telemetry
     telemetry_tab_switches = Column(Integer, default=0)

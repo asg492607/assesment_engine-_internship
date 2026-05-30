@@ -519,43 +519,101 @@ function startHackathon() {
 }
 
 // Layer 4 Interview
+// Layer 4 Interview
 function startInterview() {
   showScreen("screen-interview");
   const qBox = document.getElementById("interview-question-text");
   const replyInput = document.getElementById("interview-reply-input");
   const sendReplyBtn = document.getElementById("submit-reply-btn");
   
-  if (simulationState.candidateScores.knowledge < 80) {
-    qBox.textContent = "Your database architecture conceptual answer was basic. Can you explain how you would handle query plans manually?";
-  } else {
-    qBox.textContent = "You selected the optimal database query path. How would you handle connection pooling during high peaks of traffic?";
-  }
+  let currentStep = 1;
   
+  async function loadNextQuestion() {
+    replyInput.value = "";
+    if (useLocalFallback) {
+      if (currentStep === 1) {
+        qBox.textContent = "Your database architecture conceptual answer was basic. Can you explain how you would handle query plans manually?";
+      } else if (currentStep === 2) {
+        qBox.textContent = "Looking at your code submission, it uses a very direct, synchronous approach. How would you refactor this to support async concurrency?";
+      } else if (currentStep === 3) {
+        qBox.textContent = "Finally, when deploying this solution to a highly available production environment, how do you handle monitoring, fallback safety, and logging?";
+      } else {
+        finishInterview();
+      }
+    } else {
+      try {
+        const data = await makeRequest(`/interview/question?candidate_id=${currentCandidateId}`);
+        if (data.status === "completed" || data.step > 3) {
+          finishInterview();
+        } else {
+          currentStep = data.step;
+          qBox.textContent = data.question;
+        }
+      } catch (err) {
+        console.error("Failed to load interview question:", err);
+        addLog("Error loading dynamic interview question. Falling back to local templates.", "warning");
+        useLocalFallback = true;
+        loadNextQuestion();
+      }
+    }
+  }
+
+  function finishInterview() {
+    addLog(`Layer 4 Result: 3-turn AI interview conversation completed.`, "success");
+    addLog(`Analysis: Communication and reasoning profiles saved to database.`, "success");
+    addLog("Transitioning to Layer 5: Parallel Intelligence Analysis...", "info");
+    runCeleryWorkers();
+  }
+
   sendReplyBtn.onclick = async () => {
     const text = replyInput.value.trim();
     if (!text) return;
     
-    const commScore = Math.min(60 + text.length * 0.5, 95);
-    const reasoningScore = text.includes("pool") || text.includes("limit") || text.includes("asynchronous") ? 90 : 70;
+    addLog(`Submitting turn ${currentStep} answer: "${text.substring(0, 50)}..."`, "info");
     
-    simulationState.candidateScores.communication = Math.round(commScore);
-    simulationState.candidateScores.reasoning = Math.round(reasoningScore);
+    const commScore = Math.min(60 + text.length * 0.5, 95);
+    const reasoningScore = text.includes("pool") || text.includes("limit") || text.includes("async") || text.includes("caching") ? 90 : 70;
+    
+    // Incrementally average scores locally
+    simulationState.candidateScores.communication = Math.round(
+      (simulationState.candidateScores.communication * (currentStep - 1) + commScore) / currentStep
+    );
+    simulationState.candidateScores.reasoning = Math.round(
+      (simulationState.candidateScores.reasoning * (currentStep - 1) + reasoningScore) / currentStep
+    );
     
     if (!useLocalFallback) {
-      await makeRequest("/interview/reply", {
-        method: "POST",
-        body: JSON.stringify({
-          candidate_id: currentCandidateId,
-          reply_content: text
-        })
-      });
+      try {
+        const res = await makeRequest("/interview/reply", {
+          method: "POST",
+          body: JSON.stringify({
+            candidate_id: currentCandidateId,
+            reply_content: text
+          })
+        });
+        
+        if (res.candidate_status === "interview_done" || res.next_step > 3) {
+          finishInterview();
+          return;
+        }
+        currentStep = res.next_step;
+      } catch (err) {
+        console.error("Failed to submit reply:", err);
+        currentStep++;
+      }
+    } else {
+      currentStep++;
     }
     
-    addLog(`Layer 4 Result: AI interview transcript received.`, "success");
-    addLog(`Analysis: Communication rated ${simulationState.candidateScores.communication}%, Reasoning: ${simulationState.candidateScores.reasoning}%`, "success");
-    addLog("Transitioning to Layer 5: Parallel Intelligence Analysis...", "info");
-    runCeleryWorkers();
+    if (currentStep <= 3) {
+      loadNextQuestion();
+    } else {
+      finishInterview();
+    }
   };
+
+  // Load the initial question
+  loadNextQuestion();
 }
 
 // Layer 5 Celery
