@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assessment & Intelligence Pod - Architecture Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">A</div>
+      <div class="logo-text">
+        <h1>Assessment & Intelligence Pod</h1>
+        <p>Technical Architecture Simulator</p>
+      </div>
+    </div>
+    <div class="hiring-badge-container">
+      <span class="hiring-badge">vLLM Inference</span>
+      <span class="hiring-badge">Adaptive Engine</span>
+      <span class="hiring-badge">8 Parallel Modules</span>
+    </div>
+  </header>
+
+  <main class="app-container">
+    
+    <!-- Sidebar: Recruiter Configuration (Hiring Priorities) -->
+    <aside class="glass-panel config-sidebar">
+      <div>
+        <h2 class="sidebar-title">
+          <span>⚙️</span> Recruiter Configuration
+        </h2>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Configure hiring parameters to dynamically adjust assessment difficulty and final scoring weights.
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="role-title">Role Title</label>
+        <input type="text" id="role-title" class="custom-input" value="Senior Backend Engineer (Python)">
+      </div>
+
+      <div class="form-group">
+        <label for="difficulty-level">Target Difficulty</label>
+        <select id="difficulty-level" class="custom-select">
+          <option value="entry">Entry Level</option>
+          <option value="mid">Mid Level</option>
+          <option value="senior" selected>Senior Level</option>
+          <option value="lead">Lead / Principal</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label style="margin-bottom: 0.75rem;">Hiring Priority Weights</label>
+        <div class="weight-sliders">
+          
+          <div class="slider-container">
+            <div class="slider-info">
+              <span>Creativity</span>
+              <span class="weight-val" id="val-creativity">30%</span>
+            </div>
+            <input type="range" id="weight-creativity" min="0" max="100" value="30">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-info">
+              <span>Problem Solving</span>
+              <span class="weight-val" id="val-problem-solving">25%</span>
+            </div>
+            <input type="range" id="weight-problem-solving" min="0" max="100" value="25">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-info">
+              <span>Communication</span>
+              <span class="weight-val" id="val-communication">20%</span>
+            </div>
+            <input type="range" id="weight-communication" min="0" max="100" value="20">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-info">
+              <span>Execution</span>
+              <span class="weight-val" id="val-execution">15%</span>
+            </div>
+            <input type="range" id="weight-execution" min="0" max="100" value="15">
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-info">
+              <span>Reasoning</span>
+              <span class="weight-val" id="val-reasoning">10%</span>
+            </div>
+            <input type="range" id="weight-reasoning" min="0" max="100" value="10">
+          </div>
+
+        </div>
+        <div id="weight-status-msg" class="weight-status success">
+          Weights sum to exactly 100%
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <div class="dashboard-main">
+      
+      <!-- Section 1: Flowchart Diagram & Layer Details -->
+      <section class="glass-panel flow-diagram-container">
+        <div class="section-header">
+          <h2>Technical Architecture Layers</h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Click a layer to examine its technical specifications</span>
+        </div>
+
+        <div class="flow-grid">
+          
+          <!-- Layer 1 -->
+          <div class="flow-card active" data-layer="1">
+            <div class="flow-card-num">Layer 1</div>
+            <h3>Assessment Generator</h3>
+            <p>LangChain prompts create target assessments.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">LangChain</span>
+              <span class="tech-badge">GPT-4o</span>
+            </div>
+          </div>
+
+          <!-- Layer 2 -->
+          <div class="flow-card" data-layer="2">
+            <div class="flow-card-num">Layer 2</div>
+            <h3>Smart Quiz Engine</h3>
+            <p>FastAPI dynamic adaptive conceptual routing.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">FastAPI</span>
+              <span class="tech-badge">Adaptive Engine</span>
+            </div>
+          </div>
+
+          <!-- Layer 3 -->
+          <div class="flow-card" data-layer="3">
+            <div class="flow-card-num">Layer 3</div>
+            <h3>Live AI Hackathon</h3>
+            <p>Time-bound tasks & real-time keystroke tracking.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">WebSockets</span>
+              <span class="tech-badge">MinIO</span>
+            </div>
+          </div>
+
+          <!-- Layer 4 -->
+          <div class="flow-card" data-layer="4">
+            <div class="flow-card-num">Layer 4</div>
+            <h3>AI Interview Engine</h3>
+            <p>Llama 3.1 agents conducting follow-up inquiries.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">Llama 3.1</span>
+              <span class="tech-badge">vLLM</span>
+            </div>
+          </div>
+
+          <!-- Layer 5 -->
+          <div class="flow-card" data-layer="5">
+            <div class="flow-card-num">Layer 5</div>
+            <h3>Intelligence Analysis</h3>
+            <p>8 parallel asynchronous Celery modules.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">Celery</span>
+              <span class="tech-badge">Redis</span>
+            </div>
+          </div>
+
+          <!-- Layer 6 -->
+          <div class="flow-card" data-layer="6">
+            <div class="flow-card-num">Layer 6</div>
+            <h3>Scoring Engine</h3>
+            <p>Applies recruiter configured weights.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">Dynamic Weights</span>
+            </div>
+          </div>
+
+          <!-- Layer 7 -->
+          <div class="flow-card" data-layer="7">
+            <div class="flow-card-num">Layer 7</div>
+            <h3>Storage & Vector Search</h3>
+            <p>Postgres data + Qdrant similarity searches.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">Postgres</span>
+              <span class="tech-badge">Qdrant</span>
+            </div>
+          </div>
+
+          <!-- Layer 8 -->
+          <div class="flow-card" data-layer="8">
+            <div class="flow-card-num">Layer 8</div>
+            <h3>Final Report Outputs</h3>
+            <p>Dashboards, JSON APIs & PDF reports.</p>
+            <div class="flow-card-tech">
+              <span class="tech-badge">WeasyPrint</span>
+              <span class="tech-badge">JSON API</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Layer Technical Detail Card (Interactive details load here) -->
+        <div class="layer-details-panel" id="layer-details-box">
+          <!-- Populated by JavaScript -->
+        </div>
+      </section>
+
+      <!-- Section 2: Simulator & Interactive Playground -->
+      <section class="glass-panel">
+        <div class="section-header" style="margin-bottom: 1.5rem;">
+          <h2>Interactive Pipeline Simulator</h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Simulate a candidate assessment workflow in real-time</span>
+        </div>
+
+        <div class="simulator-panel">
+          
+          <!-- Left: Simulation Controller & Logs -->
+          <div class="simulator-controls">
+            <div class="simulator-controls-header">
+              <span style="font-weight: 600; font-size: 0.95rem;">System Console Output</span>
+              <button class="btn" id="start-simulation-btn">🚀 Start Candidate Assessment</button>
+            </div>
+
+            <div class="sim-logs-container" id="sim-logs">
+              <div class="sim-log-line system">[System Ready] Press "Start Candidate Assessment" to begin...</div>
+            </div>
+          </div>
+
+          <!-- Right: Interactive Candidate Workspace -->
+          <div class="candidate-workspace-box" id="candidate-workspace">
+            
+            <!-- Screen 1: Idle -->
+            <div class="sim-state-screen active" id="screen-idle" style="align-items: center; justify-content: center; text-align: center; gap: 0.5rem;">
+              <span style="font-size: 2.5rem;">⏳</span>
+              <h3 style="font-family: var(--font-title); font-size: 1.15rem;">Awaiting Candidate Start</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 250px;">
+                Start the simulation to feed the recruiter parameters to Layer 1.
+              </p>
+            </div>
+
+            <!-- Screen 2: Layer 2 Smart Quiz -->
+            <div class="sim-state-screen" id="screen-quiz">
+              <span class="flow-card-num" style="margin-bottom: 0.25rem;">Layer 2: Adaptive Quiz Engine</span>
+              <h4 style="font-family: var(--font-title); margin-bottom: 0.5rem;" id="quiz-question-title">Loading question...</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                This question was adapted dynamically matching the <b>Senior Level</b> difficulty requirement.
+              </p>
+              <div class="sim-quiz-options" id="quiz-options-container">
+                <!-- Javascript fills buttons -->
+              </div>
+            </div>
+
+            <!-- Screen 3: Layer 3 Live Hackathon -->
+            <div class="sim-state-screen" id="screen-hackathon">
+              <span class="flow-card-num" style="margin-bottom: 0.25rem;">Layer 3: Live AI Hackathon</span>
+              <h4 style="font-family: var(--font-title); margin-bottom: 0.5rem;">Real-time Coding Arena</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                <b>Task:</b> Write a robust python script to process real-time events. keystroke intelligence tracking is monitoring pacing.
+              </p>
+              <textarea class="custom-input" style="font-family: monospace; font-size: 0.8rem; height: 120px; resize: none; margin-bottom: 0.75rem;" id="hackathon-textarea" placeholder="def process_events(event_stream):
+    # Start coding here..."></textarea>
+              <button class="btn btn-secondary" style="align-self: flex-end;" id="submit-hackathon-btn">Submit Code</button>
+            </div>
+
+            <!-- Screen 4: Layer 4 AI Interview Agent -->
+            <div class="sim-state-screen" id="screen-interview">
+              <span class="flow-card-num" style="margin-bottom: 0.25rem;">Layer 4: AI Interview Agent</span>
+              <div class="interview-question-box">
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.25rem;">Llama 3.1 Agent</p>
+                <p id="interview-question-text" style="font-size: 0.9rem; font-weight: 500;">
+                  I noticed in your Hackathon submission that you didn't check for memory constraints. How would you handle a sudden overflow of incoming socket connections?
+                </p>
+              </div>
+              <div class="chat-input-row">
+                <input type="text" id="interview-reply-input" class="custom-input" placeholder="Type your technical reasoning here...">
+                <button class="btn" id="submit-reply-btn">Send</button>
+              </div>
+            </div>
+
+            <!-- Screen 5: Layer 5 Parallel Processing -->
+            <div class="sim-state-screen" id="screen-celery" style="align-items: center; justify-content: center; gap: 1rem;">
+              <span style="font-size: 2.5rem; animation: spin 2s linear infinite; display: inline-block;">⚙️</span>
+              <h3 style="font-family: var(--font-title); font-size: 1.15rem;">Layer 5: Parallel Intelligence Analysis</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; max-width: 320px;">
+                Celery workers are firing 8 parallel intelligence module evaluations on the candidate's metrics...
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; width: 100%; max-width: 320px;" id="celery-module-grid">
+                <!-- Javascript populates celery visual badges -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section 3: Final Reports & Insights -->
+      <section class="glass-panel report-panel" id="report-panel-container">
+        
+        <!-- Left Column: Score Breakdown & Strengths -->
+        <div class="report-summary-card">
+          <h2 style="font-family: var(--font-title); font-size: 1.35rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>📊</span> Layer 8: Final Candidate Report
+          </h2>
+
+          <div class="overall-score-display">
+            <div class="radial-score-ring">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="transparent"></circle>
+                <circle cx="50" cy="50" r="40" stroke="url(#reportGrad)" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" id="score-ring-svg" fill="transparent" style="transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s ease-out;"></circle>
+                <defs>
+                  <linearGradient id="reportGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3b82f6" />
+                    <stop offset="100%" stop-color="#10b981" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="score-text" id="report-percentage">0%</div>
+            </div>
+            <div>
+              <h3 id="report-candidate-name" style="font-family: var(--font-title); font-size: 1.1rem;">Awaiting Assessment</h3>
+              <p id="report-role-name" style="font-size: 0.8rem; color: var(--text-secondary);">Senior Backend Engineer (Python)</p>
+              <p id="report-overall-comment" style="font-size: 0.8rem; color: var(--secondary); margin-top: 0.25rem; font-weight: 500;">Match score calculated dynamically</p>
+            </div>
+          </div>
+
+          <!-- Dynamic SVG Radar Chart profile visualization -->
+          <div style="display: flex; justify-content: center; margin: 1rem 0;">
+            <svg width="220" height="220" viewBox="0 0 220 220" style="overflow: visible;" id="radar-chart-svg">
+              <!-- Radar webs and dynamic polygon rendered by JS -->
+            </svg>
+          </div>
+
+          <div class="intelligence-bars-list">
+            
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Knowledge Intelligence</span>
+                <span id="score-val-knowledge">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-knowledge"></div></div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Problem Solving Intelligence</span>
+                <span id="score-val-solving">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-solving"></div></div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Creativity Intelligence</span>
+                <span id="score-val-creativity">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-creativity"></div></div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Communication Intelligence</span>
+                <span id="score-val-communication">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-communication"></div></div>
+            </div>
+
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Reasoning Intelligence</span>
+                <span id="score-val-reasoning">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-reasoning"></div></div>
+            </div>
+
+          </div>
+
+          <div class="strengths-grid">
+            <div class="strength-box">
+              <h5>Top Strength</h5>
+              <p id="top-strength-desc">Conduct assessment to calculate profile strengths.</p>
+            </div>
+            <div class="weakness-box">
+              <h5>Focus Area</h5>
+              <p id="focus-area-desc">Conduct assessment to identify profile gaps.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: API / JSON Output -->
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="section-header">
+            <h3 style="font-family: var(--font-title); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🔌</span> JSON API Response
+            </h3>
+            <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" id="copy-json-btn">Copy JSON</button>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary);">
+            Raw response schema saved to Layer 7 (PostgreSQL) and retrieved by Layer 8 APIs.
+          </p>
+          <pre class="json-view-pre"><code id="json-code-box">{
+  "status": "awaiting_assessment_submission"
+}</code></pre>
+        </div>
+
+      </section>
+
+      <!-- Section 4: Recruiter Talent Pool Database List -->
+      <section class="glass-panel" style="margin-top: 1rem;">
+        <div class="section-header" style="margin-bottom: 1rem;">
+          <h2 style="font-family: var(--font-title); font-size: 1.35rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>👥</span> PostgreSQL Recruiter Talent Pool
+          </h2>
+          <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" id="refresh-pool-btn">Refresh DB records</button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Select any past candidate from the PostgreSQL storage registry to reload their full scoring metrics, SVG Radar charts, and JSON API profiles.
+        </p>
+        
+        <div style="overflow-x: auto; border: 1px solid var(--border-glass); border-radius: 8px;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;" id="talent-pool-table">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-glass); background: rgba(255, 255, 255, 0.02);">
+                <th style="padding: 0.75rem 1rem; color: var(--text-muted);">Candidate ID</th>
+                <th style="padding: 0.75rem 1rem; color: var(--text-muted);">Role Title</th>
+                <th style="padding: 0.75rem 1rem; color: var(--text-muted);">Difficulty</th>
+                <th style="padding: 0.75rem 1rem; color: var(--text-muted); text-align: right;">Match Score</th>
+                <th style="padding: 0.75rem 1rem; color: var(--text-muted); text-align: right;">Evaluation Date</th>
+              </tr>
+            </thead>
+            <tbody id="talent-pool-rows">
+              <!-- Dynamically populated via JS -->
+              <tr>
+                <td colspan="5" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">Awaiting database initialization...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <style>
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+services:
+  # 1. FastAPI Web API Service
+  - type: web
+    name: assessment-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: assessment-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: celery-broker
+          property: connectionString
+
+  # 2. Celery Worker background service
+  - type: worker
+    name: assessment-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A tasks.celery_app worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: assessment-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: celery-broker
+          property: connectionString
+
+  # 3. Redis Instance
+  - type: redis
+    name: celery-broker
+    ipAllowList: [] # Private network access only
+
+databases:
+  # 4. PostgreSQL Database
+  - name: assessment-db
+    databaseName: assessment_db
+    user: postgres
