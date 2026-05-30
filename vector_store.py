@@ -28,8 +28,7 @@ def store_candidate_vector(candidate_id: str, scores: dict, role_title: str):
     """
     client = get_qdrant_client()
     if not client:
-        print("Qdrant offline or unreachable. Skipping vector embedding storage.")
-        return False
+        raise ValueError("Qdrant database is offline, unreachable, or client is not installed. Real vector database connection is strictly required.")
         
     collection_name = "candidate_profiles"
     try:
@@ -76,4 +75,4 @@ def store_candidate_vector(candidate_id: str, scores: dict, role_title: str):
         return True
     except Exception as e:
         print(f"Error during Qdrant operations: {str(e)}")
-        return False
+        raise e

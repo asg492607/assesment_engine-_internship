@@ -48,6 +48,7 @@ class Candidate(Base):
     telemetry_keypresses = Column(Integer, default=0)
     telemetry_deletions = Column(Integer, default=0)
     telemetry_pasted_chars = Column(Integer, default=0)
+    telemetry_idle_time_seconds = Column(Integer, default=0)
     portfolio_profile = Column(Text, default="{}") # Stored Layer 0 JSON metadata
     telemetry_journey = Column(Text, default="[]") # JSON timeline event list: [{"time": elapsed, "action": action}]
     
