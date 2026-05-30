@@ -1,16 +1,25 @@
 import os
-from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, VectorParams, PointStruct
+
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.http.models import Distance, VectorParams, PointStruct
+    QDRANT_AVAILABLE = True
+except ImportError:
+    QDRANT_AVAILABLE = False
+    print("Warning: qdrant-client not installed. Qdrant vector storage will run in dry-run mode.")
 
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", 6333))
 
 def get_qdrant_client():
+    if not QDRANT_AVAILABLE:
+        return None
     try:
         client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=2.0)
         return client
     except Exception:
         return None
+
 
 def store_candidate_vector(candidate_id: str, scores: dict, role_title: str):
     """
