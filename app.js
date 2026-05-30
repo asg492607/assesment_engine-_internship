@@ -273,9 +273,10 @@ async function makeRequest(endpoint, options = {}) {
 startSimBtn.addEventListener("click", async () => {
   simulationState.role = roleTitleInput.value;
   simulationState.difficulty = difficultySelect.value;
+  const portfolioText = document.getElementById("portfolio-skills").value;
   
   addLog("--- INITIALIZING ASSESSMENT ENGINE PIPELINE ---", "info");
-  addLog("Layer 1: Initializing dynamic prompt structures...", "info");
+  addLog(`Layer 1: Parsing skills from portfolio graph: [${portfolioText}]`, "info");
   
   // Try real API first
   const payload = {
@@ -285,7 +286,8 @@ startSimBtn.addEventListener("click", async () => {
     weight_problem_solving: simulationState.weights.problemSolving,
     weight_communication: simulationState.weights.communication,
     weight_execution: simulationState.weights.execution,
-    weight_reasoning: simulationState.weights.reasoning
+    weight_reasoning: simulationState.weights.reasoning,
+    portfolio_skills: portfolioText
   };
   
   const data = await makeRequest("/assessment/generate", {
@@ -296,7 +298,7 @@ startSimBtn.addEventListener("click", async () => {
   if (data && data.candidate_id) {
     currentCandidateId = data.candidate_id;
     addLog(`Real Backend Created Candidate: [${currentCandidateId}]`, "success");
-    addLog("Layer 1 Successful: Assessment package stored in Postgres DB.", "success");
+    addLog("Layer 1 Successful: Custom assessment blueprint stored in DB.", "success");
   } else {
     // Local offline mock ID
     currentCandidateId = "cand_offline_" + Math.random().toString(36).substring(7);
@@ -304,13 +306,13 @@ startSimBtn.addEventListener("click", async () => {
   }
   
   setTimeout(() => {
-    addLog("Transitioning to Layer 2: Quiz engine running...", "info");
-    startQuiz();
+    addLog("Transitioning to Layer 2: Adaptive Quiz Engine running...", "info");
+    startQuiz(1);
   }, 800);
 });
 
 // Layer 2 Quiz
-async function startQuiz() {
+async function startQuiz(quizStep = 1) {
   showScreen("screen-quiz");
   
   let quizData = null;
@@ -319,15 +321,43 @@ async function startQuiz() {
   }
   
   // Fallback to local schema if server offline
-  if (!quizData) {
+  if (!quizData || quizData.status === "completed") {
+    if (quizStep > 3) {
+      addLog("Layer 2 Successful: Adaptive Quiz completed.", "success");
+      addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
+      startHackathon();
+      return;
+    }
+    
+    // Offline local loop questions
     quizData = {
-      question: "How would you optimize a slow database query involving a massive join operation?",
-      options: [
+      step: quizStep,
+      difficulty: 3,
+      question: quizStep === 1 
+        ? "How would you optimize a slow database query involving a massive join operation?" 
+        : quizStep === 2 
+        ? "What is the primary function of index lookup in relational databases?" 
+        : "Which HTTP status code represents a successful REST payload creation?",
+      options: quizStep === 1 ? [
         { text: "Add index constraints on foreign keys and rewrite the query using a specific execution path.", score: 95 },
         { text: "Add memory caching via Redis to completely bypass the database layer.", score: 80 },
         { text: "Split the massive table into several sub-tables manually and run queries in parallel.", score: 65 }
+      ] : quizStep === 2 ? [
+        { text: "To speed up data retrieval operations by using lookup structures.", score: 95 },
+        { text: "To encrypt database columns securely against unauthorized table access.", score: 40 },
+        { text: "To enforce unique primary keys automatically inside every table.", score: 70}
+      ] : [
+        { text: "201 Created", score: 95 },
+        { text: "200 OK", score: 80 },
+        { text: "202 Accepted", score: 70 }
       ]
     };
+  }
+  
+  // Update header text to show adaptive progress
+  const screenTitle = document.querySelector("#screen-quiz .flow-card-num");
+  if (screenTitle) {
+    screenTitle.textContent = `Layer 2: Adaptive Quiz (Step ${quizData.step} of 3 | Current Difficulty: ${quizData.difficulty}/5)`;
   }
   
   document.getElementById("quiz-question-title").textContent = quizData.question;
@@ -339,10 +369,18 @@ async function startQuiz() {
     btn.className = "quiz-option-btn";
     btn.textContent = opt.text;
     btn.onclick = async () => {
-      simulationState.candidateScores.knowledge = opt.score;
+      // Accumulate score
+      if (quizStep === 1) {
+        simulationState.candidateScores.knowledge = opt.score;
+      } else {
+        simulationState.candidateScores.knowledge = Math.round((simulationState.candidateScores.knowledge + opt.score) / 2);
+      }
+      
+      let nextStep = quizStep + 1;
+      let apiDone = false;
       
       if (!useLocalFallback) {
-        await makeRequest("/quiz/submit", {
+        const res = await makeRequest("/quiz/submit", {
           method: "POST",
           body: JSON.stringify({
             candidate_id: currentCandidateId,
@@ -351,15 +389,26 @@ async function startQuiz() {
             score_assigned: opt.score
           })
         });
+        if (res && res.candidate_status === "quiz_done") {
+          apiDone = true;
+        }
       }
       
-      addLog(`Layer 2 Result: Quiz answered. Candidate knowledge score computed: ${opt.score}%`, "success");
-      addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
-      startHackathon();
+      addLog(`Quiz Step ${quizData.step} Answered. Option Score: ${opt.score}%`, "system");
+      
+      if (apiDone || nextStep > 3) {
+        addLog(`Layer 2 Result: Quiz completed. Final adapted knowledge rating: ${simulationState.candidateScores.knowledge}%`, "success");
+        addLog("Transitioning to Layer 3: Live AI Hackathon...", "info");
+        startHackathon();
+      } else {
+        // Load next question in adaptive loop
+        startQuiz(nextStep);
+      }
     };
     optionsBox.appendChild(btn);
   });
 }
+
 
 // Layer 3 Hackathon
 function startHackathon() {

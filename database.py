@@ -35,6 +35,9 @@ class Candidate(Base):
     role_title = Column(String)
     difficulty_level = Column(String)
     status = Column(String, default="initialized") # initialized, quiz_done, hackathon_done, interview_done, analyzing, completed
+    portfolio_skills = Column(Text, default="{}") # Extracted skill graph JSON
+    current_quiz_step = Column(Integer, default=1) # Quiz progress 1 to 3
+    current_quiz_difficulty = Column(Integer, default=3) # Scale 1 to 5
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -42,6 +45,7 @@ class Candidate(Base):
     hackathon_submission = relationship("HackathonSubmission", uselist=False, back_populates="candidate")
     interview_transcript = relationship("InterviewTranscript", uselist=False, back_populates="candidate")
     intelligence_report = relationship("IntelligenceReport", uselist=False, back_populates="candidate")
+
 
 class QuizResponse(Base):
     __tablename__ = "quiz_responses"

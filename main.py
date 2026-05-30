@@ -41,6 +41,7 @@ class RecruiterConfigSchema(BaseModel):
     weight_communication: float
     weight_execution: float
     weight_reasoning: float
+    portfolio_skills: str = "{}"
 
 class QuizAnswerSchema(BaseModel):
     candidate_id: str
@@ -60,7 +61,7 @@ class InterviewReplySchema(BaseModel):
 def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get_db)):
     """
     Layer 1: Assessment Generator. Creates a recruiter configurations row
-    and starts a new candidate tracking workflow.
+    and starts a new candidate tracking workflow incorporating Portfolio Skill graphs.
     """
     # Save recruiter configuration
     rec_cfg = RecruiterConfig(
@@ -75,12 +76,19 @@ def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get
     db.add(rec_cfg)
     db.commit()
     
+    # Starting difficulty based on recruiter target select: entry=2, mid=3, senior=4, lead=5
+    diff_map = {"entry": 2, "mid": 3, "senior": 4, "lead": 5}
+    start_diff = diff_map.get(config.difficulty_level, 3)
+    
     # Generate unique candidate token
     cand_id = f"cand_{uuid.uuid4().hex[:6]}"
     candidate = Candidate(
         id=cand_id,
         role_title=config.role_title,
         difficulty_level=config.difficulty_level,
+        portfolio_skills=config.portfolio_skills,
+        current_quiz_step=1,
+        current_quiz_difficulty=start_diff,
         status="initialized"
     )
     db.add(candidate)
@@ -90,40 +98,140 @@ def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get
         "candidate_id": cand_id,
         "status": "initialized",
         "recruiter_config_id": rec_cfg.id,
-        "message": "Assessment templates generated using LangChain prompts successfully."
+        "message": f"Assessment generated custom-targeting skill graph: {config.portfolio_skills}."
     }
 
-@app.get("/api/quiz/question")
-def get_quiz_question(candidate_id: str, db: Session = Depends(get_db)):
-    """
-    Layer 2: Adaptive Quiz Engine. Serves a custom question based on candidate status.
-    """
-    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-        
-    # Question structures matching target difficulty level
-    if candidate.difficulty_level in ["senior", "lead"]:
-        return {
-            "question": "How would you optimize a slow database query involving a massive join operation?",
+# ADAPTIVE MULTI-LEVEL QUIZ QUESTION BANK
+# Difficulty Scale: 1 (Simplest) to 5 (Hardest)
+QUIZ_BANK = {
+    "default": {
+        1: {
+            "question": "What does a Python list comprehension do?",
             "options": [
-                {"text": "Add index constraints on foreign keys and rewrite the query using a specific execution path.", "score": 95},
-                {"text": "Add memory caching via Redis to completely bypass the database layer.", "score": 80},
-                {"text": "Split the massive table into several sub-tables manually and run queries in parallel.", "score": 65}
+                {"text": "Creates a new list by applying an expression to each item in an existing iterable.", "score": 95},
+                {"text": "Compiles a python script into bytecode statically.", "score": 30},
+                {"text": "Compresses memory storage of arrays dynamically.", "score": 50}
             ]
-        }
-    else:
-        return {
+        },
+        2: {
             "question": "What is the primary function of index lookup in relational databases?",
             "options": [
                 {"text": "To speed up data retrieval operations by using lookup structures.", "score": 95},
                 {"text": "To encrypt database columns securely against unauthorized table access.", "score": 40},
                 {"text": "To enforce unique primary keys automatically inside every table.", "score": 70}
             ]
+        },
+        3: {
+            "question": "Which HTTP status code represents a successful REST payload creation?",
+            "options": [
+                {"text": "201 Created", "score": 95},
+                {"text": "200 OK", "score": 80},
+                {"text": "202 Accepted", "score": 70}
+            ]
+        },
+        4: {
+            "question": "How would you optimize a slow database query involving a massive join operation?",
+            "options": [
+                {"text": "Add index constraints on foreign keys and rewrite the query using a specific execution path.", "score": 95},
+                {"text": "Add memory caching via Redis to completely bypass the database layer.", "score": 80},
+                {"text": "Split the massive table into several sub-tables manually and run queries in parallel.", "score": 65}
+            ]
+        },
+        5: {
+            "question": "How do you handle deadlocks in heavy transaction loops in PostgreSQL?",
+            "options": [
+                {"text": "Order lock acquisitions consistently and set short lock timeouts to retry transactions.", "score": 95},
+                {"text": "Increase shared buffers and disable autovacuum completely on tables.", "score": 30},
+                {"text": "Use read replicas to perform write queries asynchronously.", "score": 50}
+            ]
         }
+    },
+    "javascript": {
+        1: {
+            "question": "What is the difference between 'let' and 'var' in JS?",
+            "options": [
+                {"text": "'let' is block-scoped, while 'var' is function-scoped.", "score": 95},
+                {"text": "'var' is immutable while 'let' can change values.", "score": 30},
+                {"text": "There is no functional difference; they are syntactic aliases.", "score": 40}
+            ]
+        },
+        2: {
+            "question": "What does Promise.all() do?",
+            "options": [
+                {"text": "Runs multiple async operations in parallel and waits for all of them to resolve.", "score": 95},
+                {"text": "Executes promises sequentially in block loops.", "score": 40},
+                {"text": "Catches promise rejection and ignores all errors.", "score": 50}
+            ]
+        },
+        3: {
+            "question": "How do you prevent useless component re-renders in React?",
+            "options": [
+                {"text": "Use React.memo(), useMemo(), and useCallback() hooks.", "score": 95},
+                {"text": "Call forceUpdate() inside render hooks.", "score": 35},
+                {"text": "Save all variable structures in document cookies.", "score": 25}
+            ]
+        },
+        4: {
+            "question": "Explain Event Loop behavior in Node.js.",
+            "options": [
+                {"text": "Offloads blocking calls to a thread pool and executes callbacks in phases.", "score": 95},
+                {"text": "Forces Javascript execution to run fully multithreaded.", "score": 40},
+                {"text": "Halts execution until files are written directly to memory.", "score": 30}
+            ]
+        },
+        5: {
+            "question": "How do you build custom garbage collection checks in V8?",
+            "options": [
+                {"text": "Track allocations, use WeakRef/FinalizationRegistry, and run with --expose-gc to monitor heap.", "score": 95},
+                {"text": "Call delete on all global variables continuously.", "score": 30},
+                {"text": "Restart the Node.js process after every client connection.", "score": 20}
+            ]
+        }
+    }
+}
+
+@app.get("/api/quiz/question")
+def get_quiz_question(candidate_id: str, db: Session = Depends(get_db)):
+    """
+    Layer 2: Adaptive Quiz Engine. Serves a custom question based on Candidate history.
+    Detects portfolio skill tags (e.g. JS/React) and pulls matching difficulty index.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    # Check if candidate completed the quiz steps
+    if candidate.current_quiz_step > 3:
+        return {"status": "completed", "message": "Quiz completed."}
+        
+    # Choose topic based on portfolio skills: React/JS vs Python/default
+    skills_str = candidate.portfolio_skills.lower()
+    topic = "default"
+    if "javascript" in skills_str or "react" in skills_str or "node" in skills_str:
+        topic = "javascript"
+        
+    diff = candidate.current_quiz_difficulty
+    # Fallback to nearest scale boundaries
+    diff = max(1, min(5, diff))
+    
+    question_data = QUIZ_BANK[topic][diff]
+    
+    return {
+        "candidate_id": candidate_id,
+        "step": candidate.current_quiz_step,
+        "difficulty": diff,
+        "question": question_data["question"],
+        "options": question_data["options"]
+    }
 
 @app.post("/api/quiz/submit")
 def submit_quiz_answer(payload: QuizAnswerSchema, db: Session = Depends(get_db)):
+    """
+    Evaluates response accuracy:
+    - Correct (Score >= 80) -> Increment difficulty level for next question (+1)
+    - Incorrect (Score < 80) -> Decrement difficulty level for next question (-1)
+    - Advances step (+1). Sets status to quiz_done on step 4.
+    """
     candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -135,9 +243,32 @@ def submit_quiz_answer(payload: QuizAnswerSchema, db: Session = Depends(get_db))
         score_assigned=payload.score_assigned
     )
     db.add(resp)
-    candidate.status = "quiz_done"
+    
+    # Adaptive routing adjustments
+    current_diff = candidate.current_quiz_difficulty
+    if payload.score_assigned >= 80:
+        # Step up difficulty
+        candidate.current_quiz_difficulty = min(5, current_diff + 1)
+        print(f"Candidate {payload.candidate_id} got it correct. Difficulty scaled UP to {candidate.current_quiz_difficulty}")
+    else:
+        # Step down difficulty
+        candidate.current_quiz_difficulty = max(1, current_diff - 1)
+        print(f"Candidate {payload.candidate_id} got it wrong. Difficulty scaled DOWN to {candidate.current_quiz_difficulty}")
+        
+    candidate.current_quiz_step += 1
+    
+    # Completed quiz check
+    if candidate.current_quiz_step > 3:
+        candidate.status = "quiz_done"
+        
     db.commit()
-    return {"status": "success", "candidate_status": candidate.status}
+    return {
+        "status": "success", 
+        "candidate_status": candidate.status,
+        "next_step": candidate.current_quiz_step,
+        "next_difficulty": candidate.current_quiz_difficulty
+    }
+
 
 @app.post("/api/hackathon/submit")
 def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_db)):
