@@ -492,6 +492,16 @@ function startHackathon() {
     simulationState.candidateScores.creativity = creativityFactor;
     simulationState.candidateScores.solving = problemSolvingFactor;
     
+    let realIdleTime = 0;
+    if (hackJourney.length > 1) {
+      for (let i = 1; i < hackJourney.length; i++) {
+        const diff = hackJourney[i].time - hackJourney[i-1].time;
+        if (diff >= 5) {
+          realIdleTime += diff;
+        }
+      }
+    }
+    
     try {
       await makeRequest("/hackathon/submit", {
         method: "POST",
@@ -501,7 +511,7 @@ function startHackathon() {
           keypresses: hackKeypresses,
           deletions: hackDeletions,
           pasted_chars: hackPastedChars,
-          idle_time: 15, // Mock standard typing session inactivity pacing
+          idle_time: realIdleTime, // Dynamically calculated real typing session inactivity pacing
           journey: hackJourney
         })
       });
