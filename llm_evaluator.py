@@ -4,10 +4,36 @@ import json
 import urllib.request
 import urllib.error
 
-# Environment Settings
+# Load local .env manually if exists
+if os.path.exists(".env"):
+    try:
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        k, v = parts[0].strip(), parts[1].strip().strip('"').strip("'")
+                        if k:
+                            os.environ[k] = v
+    except Exception as e:
+        print(f"Error loading .env file: {e}")
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-LLM_API_URL = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+# Determine which provider to use
+if GROQ_API_KEY:
+    LLM_API_KEY = GROQ_API_KEY
+    LLM_API_URL = os.getenv("LLM_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+    # Standard stable free model on Groq
+    LLM_MODEL = os.getenv("LLM_MODEL", "llama3-8b-8192")
+    PROVIDER_NAME = "Groq"
+else:
+    LLM_API_KEY = OPENAI_API_KEY
+    LLM_API_URL = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
+    LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+    PROVIDER_NAME = "OpenAI"
 
 class ASTAnalyzer:
     """
@@ -84,16 +110,15 @@ class ASTAnalyzer:
 class LLMJudge:
     """
     Real LLM Judge evaluating Code Submissions and Conversational Responses.
-    Falls back gracefully to compiler AST/heurisitics if API keys are missing.
     """
     @staticmethod
     def _call_llm(prompt: str, system_prompt: str) -> dict:
-        if not OPENAI_API_KEY:
+        if not LLM_API_KEY:
             return None # Force fallback
             
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {OPENAI_API_KEY}"
+            "Authorization": f"Bearer {LLM_API_KEY}"
         }
         
         data = {
@@ -114,13 +139,13 @@ class LLMJudge:
         )
         
         try:
-            with urllib.request.urlopen(req, timeout=8.0) as response:
+            with urllib.request.urlopen(req, timeout=10.0) as response:
                 res_body = response.read().decode("utf-8")
                 res_json = json.loads(res_body)
                 content = res_json["choices"][0]["message"]["content"]
                 return json.loads(content)
         except Exception as e:
-            print(f"LLM API Call failed: {str(e)}. Using fallback analyzer.")
+            print(f"LLM API Call failed ({PROVIDER_NAME}): {str(e)}.")
             return None
 
     @classmethod
@@ -133,7 +158,7 @@ class LLMJudge:
         
         llm_result = cls._call_llm(prompt, system)
         if not llm_result:
-            raise ValueError("OpenAI API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
+            raise ValueError(f"{PROVIDER_NAME} API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
         return llm_result
 
     @classmethod
@@ -146,5 +171,5 @@ class LLMJudge:
         
         llm_result = cls._call_llm(prompt, system)
         if not llm_result:
-            raise ValueError("OpenAI API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
+            raise ValueError(f"{PROVIDER_NAME} API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
         return llm_result
