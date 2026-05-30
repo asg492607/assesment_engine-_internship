@@ -746,6 +746,21 @@ async function finalizeAssessment() {
         {time: 12, action: "pasted"},
         {time: 18, action: "deleted"}
       ],
+      behavioral_intelligence: {
+        thinking_time: hackJourney.length > 0 ? 80 : 65,
+        exploration: hackDeletions > 0 ? 75 : 60,
+        confidence: hackKeypresses > 0 ? 85 : 70,
+        ai_dependency: hackPastedChars > 100 ? 60 : 15
+      },
+      matchmaking_intelligence: {
+        role_fit: finalScore,
+        culture_fit: 82,
+        learning_velocity: 80,
+        growth_potential: 85,
+        recommended_roles: simulationState.role.includes("Python") ? 
+          ["Backend Engineer", "Platform Engineer", "API Specialist"] : 
+          ["Frontend Engineer", "UI Developer", "Fullstack Architect"]
+      },
       system_metadata: {
         engine_version: "2.1-LlamaAgentOffline",
         timestamp_processed: new Date().toISOString()
@@ -875,6 +890,31 @@ function renderCandidateReport(reportData) {
     portDetails.style.display = "none";
   }
   
+  // Render Layer 5.5 Behavioral Intelligence
+  const beh = reportData.behavioral_intelligence || { thinking_time: 70, exploration: 70, confidence: 70, ai_dependency: 10 };
+  document.getElementById("bar-behavior-thinking").style.width = `${beh.thinking_time}%`;
+  document.getElementById("score-val-behavior-thinking").textContent = `${beh.thinking_time}%`;
+  document.getElementById("bar-behavior-exploration").style.width = `${beh.exploration}%`;
+  document.getElementById("score-val-behavior-exploration").textContent = `${beh.exploration}%`;
+  document.getElementById("bar-behavior-confidence").style.width = `${beh.confidence}%`;
+  document.getElementById("score-val-behavior-confidence").textContent = `${beh.confidence}%`;
+  document.getElementById("bar-behavior-aidep").style.width = `${beh.ai_dependency}%`;
+  document.getElementById("score-val-behavior-aidep").textContent = `${beh.ai_dependency}%`;
+  
+  // Render Layer 9 Matchmaking Intelligence
+  const mat = reportData.matchmaking_intelligence || { role_fit: 75, culture_fit: 75, learning_velocity: 75, growth_potential: 75, recommended_roles: [] };
+  document.getElementById("match-role-fit").textContent = `${mat.role_fit}%`;
+  document.getElementById("match-culture-fit").textContent = `${mat.culture_fit}%`;
+  document.getElementById("match-learning-velocity").textContent = `${mat.learning_velocity}%`;
+  document.getElementById("match-growth-potential").textContent = `${mat.growth_potential}%`;
+  
+  const recRolesContainer = document.getElementById("match-recommended-roles");
+  if (mat.recommended_roles && mat.recommended_roles.length > 0) {
+    recRolesContainer.innerHTML = mat.recommended_roles.map(r => `<span class="hiring-badge">${r}</span>`).join("");
+  } else {
+    recRolesContainer.innerHTML = `<span class="hiring-badge">-</span>`;
+  }
+
   // Layer 3 Journey Replay
   initJourneyPlayer(reportData.telemetry_journey);
 

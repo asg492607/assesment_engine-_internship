@@ -640,6 +640,19 @@ def get_report(candidate_id: str, db: Session = Depends(get_db)):
         "match_score_percentage": report.final_weighted_score,
         "portfolio_profile": json.loads(candidate.portfolio_profile) if candidate.portfolio_profile else {},
         "telemetry_journey": json.loads(candidate.telemetry_journey) if candidate.telemetry_journey else [],
+        "behavioral_intelligence": {
+            "thinking_time": report.behavior_thinking_time or 70,
+            "exploration": report.behavior_exploration or 70,
+            "confidence": report.behavior_confidence or 70,
+            "ai_dependency": report.behavior_ai_dependency or 10
+        },
+        "matchmaking_intelligence": {
+            "role_fit": report.matchmaking_role_fit or 75,
+            "culture_fit": report.matchmaking_culture_fit or 75,
+            "learning_velocity": report.matchmaking_learning_velocity or 75,
+            "growth_potential": report.matchmaking_growth_potential or 75,
+            "recommended_roles": json.loads(report.matchmaking_recommended_roles) if report.matchmaking_recommended_roles else []
+        },
         "intelligence_breakdown": {
             "knowledge_intelligence": report.score_knowledge,
             "problem_solving_intelligence": report.score_solving,

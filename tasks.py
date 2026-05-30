@@ -160,6 +160,40 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
         else:
             lrn_pattern = "Structured Builder"
             
+        # Layer 5.5 behavioral intelligence score calculations
+        import json
+        try:
+            journey_events = json.loads(candidate.telemetry_journey) if candidate.telemetry_journey else []
+        except Exception:
+            journey_events = []
+            
+        pauses = 0
+        if len(journey_events) > 1:
+            for i in range(1, len(journey_events)):
+                diff = journey_events[i]["time"] - journey_events[i-1]["time"]
+                if diff >= 5:
+                    pauses += 1
+        thinking_time = min(100, 50 + (pauses * 8))
+        exploration = min(100, 50 + (dls * 3))
+        confidence = max(30, min(100, 100 - int((dls / max(1, kps)) * 150)))
+        ai_dep = min(100, int((pst / max(1, kps)) * 100)) if kps > 0 else (50 if pst > 0 else 10)
+        
+        # Layer 9 Matchmaking statistics calculations
+        role_fit = final_score
+        culture_fit = int(module_scores["Communication"] * 0.6 + module_scores["Company Match"] * 0.4)
+        learning_velocity = int((exploration + module_scores["Reasoning"]) / 2)
+        growth_potential = int(((candidate.current_quiz_difficulty or 3) * 15) + (module_scores["Career Readiness"] * 0.25))
+        
+        roles_list = []
+        role_lower = (candidate.role_title or "").lower()
+        if "python" in role_lower or "django" in role_lower or "backend" in role_lower:
+            roles_list = ["Principal Python Engineer", "Backend Platform Architect", "Technical Lead"]
+        elif "javascript" in role_lower or "react" in role_lower or "frontend" in role_lower:
+            roles_list = ["Senior Frontend Engineer", "UI Platform Architect", "Fullstack Developer"]
+        else:
+            roles_list = ["Senior Software Engineer", "Systems Architect"]
+        rec_roles_json = json.dumps(roles_list)
+            
         report.score_knowledge = module_scores["Knowledge"]
         report.score_solving = module_scores["Problem Solving"]
         report.score_creativity = module_scores["Creativity"]
@@ -172,6 +206,19 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
         report.integrity_risk_level = risk_level
         report.learning_pattern = lrn_pattern
         report.confidence_pattern = conf_pattern
+        
+        # Save behavioral scores
+        report.behavior_thinking_time = int(thinking_time)
+        report.behavior_exploration = int(exploration)
+        report.behavior_confidence = int(confidence)
+        report.behavior_ai_dependency = int(ai_dep)
+        
+        # Save matchmaking parameters
+        report.matchmaking_role_fit = int(role_fit)
+        report.matchmaking_culture_fit = int(culture_fit)
+        report.matchmaking_learning_velocity = int(learning_velocity)
+        report.matchmaking_growth_potential = int(growth_potential)
+        report.matchmaking_recommended_roles = rec_roles_json
         
         report.final_weighted_score = final_score
         report.strengths = strengths

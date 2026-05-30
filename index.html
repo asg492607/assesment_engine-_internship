@@ -425,6 +425,74 @@
               <p id="focus-area-desc">Conduct assessment to identify profile gaps.</p>
             </div>
           </div>
+
+          <!-- Layer 5.5 Behavioral Intelligence Scores -->
+          <div style="border-top: 1px solid var(--border-glass); padding-top: 1rem; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: #60a5fa; margin-bottom: 0.25rem;">🧠 Layer 5.5: Behavioral Intelligence</h4>
+            
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Thinking Time Score</span>
+                <span id="score-val-behavior-thinking">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-behavior-thinking" style="background: var(--primary);"></div></div>
+            </div>
+            
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Exploration (Experimentation)</span>
+                <span id="score-val-behavior-exploration">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-behavior-exploration" style="background: var(--secondary);"></div></div>
+            </div>
+            
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>Typing Confidence</span>
+                <span id="score-val-behavior-confidence">0%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-behavior-confidence" style="background: var(--accent);"></div></div>
+            </div>
+            
+            <div class="bar-row">
+              <div class="bar-info">
+                <span>AI Dependency Score</span>
+                <span id="score-val-behavior-aidep">0%</span>
+              </div>
+              <div class="bar-track" style="background: rgba(245, 158, 11, 0.1);"><div class="bar-fill" id="bar-behavior-aidep" style="background: var(--accent-orange);"></div></div>
+            </div>
+          </div>
+
+          <!-- Layer 9 Matchmaking Analytics -->
+          <div style="background: rgba(16, 185, 129, 0.03); border: 1px solid rgba(16, 185, 129, 0.15); padding: 1rem; border-radius: 12px; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <h4 style="font-family: var(--font-title); font-size: 0.95rem; color: var(--secondary); margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
+              <span>🤝</span> Layer 9: Matchmaking Intelligence
+            </h4>
+            <div class="strengths-grid" style="grid-template-columns: repeat(2, 1fr); gap: 0.75rem; font-size: 0.8rem;">
+              <div style="background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-glass);">
+                <div style="color: var(--text-muted);">Role Fit</div>
+                <div id="match-role-fit" style="font-size: 1.15rem; font-weight: 800; color: var(--secondary); margin-top: 0.15rem;">0%</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-glass);">
+                <div style="color: var(--text-muted);">Culture Fit</div>
+                <div id="match-culture-fit" style="font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-top: 0.15rem;">0%</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-glass);">
+                <div style="color: var(--text-muted);">Learning Velocity</div>
+                <div id="match-learning-velocity" style="font-size: 1.15rem; font-weight: 800; color: var(--accent); margin-top: 0.15rem;">0%</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-glass);">
+                <div style="color: var(--text-muted);">Growth Potential</div>
+                <div id="match-growth-potential" style="font-size: 1.15rem; font-weight: 800; color: var(--accent-orange); margin-top: 0.15rem;">0%</div>
+              </div>
+            </div>
+            <div style="font-size: 0.8rem; border-top: 1px dashed var(--border-glass); padding-top: 0.5rem;">
+              <strong>Recommended Roles for Matchmaking Pod:</strong>
+              <div class="hiring-badge-container" id="match-recommended-roles" style="margin-top: 0.35rem;">
+                <span class="hiring-badge">-</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Right Column: Portfolio Profile, Journey Replay, and JSON Output -->

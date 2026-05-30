@@ -118,6 +118,19 @@ class IntelligenceReport(Base):
     learning_pattern = Column(String, default="Structured Builder")
     confidence_pattern = Column(String, default="Decisive")
     
+    # Layer 5.5 behavioral intelligence scores
+    behavior_thinking_time = Column(Integer, default=70)
+    behavior_exploration = Column(Integer, default=70)
+    behavior_confidence = Column(Integer, default=70)
+    behavior_ai_dependency = Column(Integer, default=10)
+    
+    # Layer 9 Matchmaking statistics
+    matchmaking_role_fit = Column(Integer, default=75)
+    matchmaking_culture_fit = Column(Integer, default=75)
+    matchmaking_learning_velocity = Column(Integer, default=75)
+    matchmaking_growth_potential = Column(Integer, default=75)
+    matchmaking_recommended_roles = Column(Text, default="[]") # JSON string array
+    
     final_weighted_score = Column(Integer)
     strengths = Column(Text)
     weaknesses = Column(Text)
@@ -208,6 +221,15 @@ def init_db():
                 integrity_risk_level="Low Risk",
                 learning_pattern="Structured Builder",
                 confidence_pattern="Decisive",
+                behavior_thinking_time=85,
+                behavior_exploration=60,
+                behavior_confidence=92,
+                behavior_ai_dependency=12,
+                matchmaking_role_fit=90,
+                matchmaking_culture_fit=91,
+                matchmaking_learning_velocity=88,
+                matchmaking_growth_potential=94,
+                matchmaking_recommended_roles='["Principal Python Engineer", "Backend Platform Architect", "Technical Lead"]',
                 final_weighted_score=90,
                 strengths="Exceptional architectural safety patterns and code execution flow.",
                 weaknesses="Over-engineers helper pipelines."
@@ -272,6 +294,15 @@ def init_db():
                 integrity_risk_level="Medium Risk",
                 learning_pattern="Copy-Paste Reliant",
                 confidence_pattern="Erratic",
+                behavior_thinking_time=55,
+                behavior_exploration=82,
+                behavior_confidence=45,
+                behavior_ai_dependency=78,
+                matchmaking_role_fit=76,
+                matchmaking_culture_fit=78,
+                matchmaking_learning_velocity=75,
+                matchmaking_growth_potential=77,
+                matchmaking_recommended_roles='["Python Software Developer", "Systems Integration Engineer"]',
                 final_weighted_score=76,
                 strengths="Steady execution rhythm, solid understanding of local session caching.",
                 weaknesses="Gaps in scale planning and socket stream pools."
