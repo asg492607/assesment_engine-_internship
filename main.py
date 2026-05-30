@@ -32,6 +32,8 @@ def get_db():
     finally:
         db.close()
 
+import json
+
 # Request Pydantic Schemas
 class RecruiterConfigSchema(BaseModel):
     role_title: str
@@ -56,6 +58,7 @@ class HackathonSubmitSchema(BaseModel):
     deletions: int = 0
     pasted_chars: int = 0
     idle_time: int = 0
+    journey: List[Dict[str, Any]] = []
 
 class InterviewReplySchema(BaseModel):
     candidate_id: str
@@ -65,6 +68,58 @@ class TelemetrySchema(BaseModel):
     candidate_id: str
     tab_switches: int
     copy_pastes: int
+
+def build_portfolio_profile(skills_input: str, difficulty: str) -> str:
+    skills = [s.strip() for s in skills_input.split(",") if s.strip()]
+    if not skills:
+        skills = ["Python", "FastAPI", "Postgres"]
+        
+    diff_label_map = {
+        "entry": "Entry-level Engineer",
+        "mid": "Mid-level Engineer",
+        "senior": "Senior Engineer",
+        "lead": "Lead / Principal Engineer"
+    }
+    exp_level = diff_label_map.get(difficulty.lower(), "Senior Engineer")
+    
+    # Custom domains based on skills
+    domains = []
+    skills_lower = [s.lower() for s in skills]
+    if any(x in "".join(skills_lower) for x in ["react", "javascript", "vue", "angular", "html", "css", "js"]):
+        domains.append("Frontend Architecture")
+        domains.append("User Interface Design")
+    if any(x in "".join(skills_lower) for x in ["python", "django", "flask", "fastapi", "node", "java", "golang"]):
+        domains.append("Backend Engineering")
+        domains.append("Distributed Systems")
+    if any(x in "".join(skills_lower) for x in ["postgres", "sql", "mongo", "database", "redis"]):
+        domains.append("Database Administration & Optimizations")
+    if not domains:
+        domains = ["Software Engineering", "Systems Design"]
+        
+    profile = {
+        "skills": skills,
+        "experience_level": exp_level,
+        "domains": domains,
+        "projects": [
+            {
+                "name": f"Enterprise {skills[0]} Engine",
+                "description": f"Designed and optimized a core transaction engine using {', '.join(skills[:3])}."
+            }
+        ],
+        "career_interests": [
+            "High Scale Platforms",
+            "Complex Cloud Architectures"
+        ],
+        "strength_signals": [
+            f"Strong conceptual understanding of {skills[0]} libraries",
+            "Well structured code blocks and syntax correctness"
+        ],
+        "learning_signals": [
+            "Expanding hands-on experience with asynchronous system designs",
+            "Refining query optimization index techniques"
+        ]
+    }
+    return json.dumps(profile)
 
 @app.post("/api/assessment/generate")
 def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get_db)):
@@ -89,6 +144,9 @@ def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get
     diff_map = {"entry": 2, "mid": 3, "senior": 4, "lead": 5}
     start_diff = diff_map.get(config.difficulty_level, 3)
     
+    # Generate Layer 0 Portfolio profile
+    profile_json = build_portfolio_profile(config.portfolio_skills, config.difficulty_level)
+    
     # Generate unique candidate token
     cand_id = f"cand_{uuid.uuid4().hex[:6]}"
     candidate = Candidate(
@@ -96,6 +154,7 @@ def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get
         role_title=config.role_title,
         difficulty_level=config.difficulty_level,
         portfolio_skills=config.portfolio_skills,
+        portfolio_profile=profile_json,
         current_quiz_step=1,
         current_quiz_difficulty=start_diff,
         status="initialized"
@@ -308,6 +367,7 @@ def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_d
     candidate.telemetry_deletions = payload.deletions
     candidate.telemetry_pasted_chars = payload.pasted_chars
     candidate.telemetry_idle_time_seconds = payload.idle_time
+    candidate.telemetry_journey = json.dumps(payload.journey)
     
     candidate.status = "hackathon_done"
     db.commit()
@@ -578,6 +638,8 @@ def get_report(candidate_id: str, db: Session = Depends(get_db)):
         "difficulty_level": candidate.difficulty_level,
         "status": candidate.status,
         "match_score_percentage": report.final_weighted_score,
+        "portfolio_profile": json.loads(candidate.portfolio_profile) if candidate.portfolio_profile else {},
+        "telemetry_journey": json.loads(candidate.telemetry_journey) if candidate.telemetry_journey else [],
         "intelligence_breakdown": {
             "knowledge_intelligence": report.score_knowledge,
             "problem_solving_intelligence": report.score_solving,

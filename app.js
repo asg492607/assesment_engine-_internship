@@ -11,21 +11,28 @@ let proctorCopyPastes = 0;
 let hackKeypresses = 0;
 let hackDeletions = 0;
 let hackPastedChars = 0;
+let hackJourney = []; // Array of timed actions: {time: seconds, action: type}
+let hackStartTime = Date.now();
 
 // Setup coding textarea listener on load
 setTimeout(() => {
   const hackArea = document.getElementById("hackathon-textarea");
   if (hackArea) {
     hackArea.addEventListener("keydown", (e) => {
+      const elapsed = Math.max(0, Math.round((Date.now() - hackStartTime) / 1000));
       if (e.key === "Backspace" || e.key === "Delete") {
         hackDeletions++;
+        hackJourney.push({time: elapsed, action: "deleted"});
       } else if (e.key.length === 1) { // Printable character
         hackKeypresses++;
+        hackJourney.push({time: elapsed, action: "typed"});
       }
     });
     hackArea.addEventListener("paste", (e) => {
+      const elapsed = Math.max(0, Math.round((Date.now() - hackStartTime) / 1000));
       const text = (e.clipboardData || window.clipboardData).getData('text');
       hackPastedChars += text.length;
+      hackJourney.push({time: elapsed, action: "pasted"});
     });
   }
 }, 500);
@@ -484,6 +491,8 @@ async function startQuiz(quizStep = 1) {
 // Layer 3 Hackathon
 function startHackathon() {
   showScreen("screen-hackathon");
+  hackStartTime = Date.now();
+  hackJourney = [];
   const submitBtn = document.getElementById("submit-hackathon-btn");
   const textarea = document.getElementById("hackathon-textarea");
   
@@ -506,7 +515,8 @@ function startHackathon() {
           keypresses: hackKeypresses,
           deletions: hackDeletions,
           pasted_chars: hackPastedChars,
-          idle_time: 15 // Mock standard typing session inactivity pacing
+          idle_time: 15, // Mock standard typing session inactivity pacing
+          journey: hackJourney
         })
       });
     }
@@ -720,6 +730,22 @@ async function finalizeAssessment() {
         qdrant_vector_id: "vec_offline_vector_id_331e",
         minio_hackathon_bucket_url: "s3://assessments/submissions/offline_src.tar.gz"
       },
+      portfolio_profile: {
+        skills: simulationState.role.includes("Python") ? ["Python", "FastAPI", "PostgreSQL"] : ["JavaScript", "React", "Node.js"],
+        experience_level: simulationState.difficulty.toUpperCase(),
+        domains: ["Web Systems", "Asynchronous Pipelines"],
+        projects: [
+          {name: "Task Dispatcher Simulator", description: "Created an interactive flow rendering microservices pipeline."}
+        ],
+        strength_signals: ["Excellent structural modularity"],
+        learning_signals: ["Actively refining testing frameworks"]
+      },
+      telemetry_journey: hackJourney.length > 0 ? hackJourney : [
+        {time: 2, action: "typed"},
+        {time: 5, action: "typed"},
+        {time: 12, action: "pasted"},
+        {time: 18, action: "deleted"}
+      ],
       system_metadata: {
         engine_version: "2.1-LlamaAgentOffline",
         timestamp_processed: new Date().toISOString()
@@ -819,8 +845,144 @@ function renderCandidateReport(reportData) {
   document.getElementById("top-strength-desc").textContent = reportData.report_feedback.strengths;
   document.getElementById("focus-area-desc").textContent = reportData.report_feedback.weaknesses;
   
+  // Layer 0 Portfolio Profile
+  const portLoading = document.getElementById("portfolio-profile-loading");
+  const portDetails = document.getElementById("portfolio-profile-details");
+  
+  if (reportData.portfolio_profile && reportData.portfolio_profile.skills) {
+    portLoading.style.display = "none";
+    portDetails.style.display = "flex";
+    
+    const profile = reportData.portfolio_profile;
+    document.getElementById("port-experience").textContent = profile.experience_level || "Senior Developer";
+    document.getElementById("port-domains").textContent = (profile.domains || []).join(", ");
+    
+    const projectsContainer = document.getElementById("port-projects");
+    if (profile.projects && profile.projects.length > 0) {
+      projectsContainer.innerHTML = profile.projects.map(p => `
+        <div style="font-weight: 600; color: var(--primary);">${p.name}</div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">${p.description}</div>
+      `).join("");
+    } else {
+      projectsContainer.textContent = "No project logs extracted.";
+    }
+    
+    document.getElementById("port-strength").textContent = (profile.strength_signals && profile.strength_signals.length > 0) ? profile.strength_signals[0] : "-";
+    document.getElementById("port-learning").textContent = (profile.learning_signals && profile.learning_signals.length > 0) ? profile.learning_signals[0] : "-";
+  } else {
+    portLoading.style.display = "block";
+    portLoading.textContent = "No Layer 0 Portfolio details found.";
+    portDetails.style.display = "none";
+  }
+  
+  // Layer 3 Journey Replay
+  initJourneyPlayer(reportData.telemetry_journey);
+
   // JSON Output
   document.getElementById("json-code-box").textContent = JSON.stringify(reportData, null, 2);
+}
+
+let replayInterval = null;
+let replayTimeline = [];
+let replayIndex = 0;
+let isReplaying = false;
+
+function initJourneyPlayer(journey) {
+  if (replayInterval) {
+    clearInterval(replayInterval);
+    replayInterval = null;
+  }
+  
+  const loadingEl = document.getElementById("journey-replay-loading");
+  const detailsEl = document.getElementById("journey-replay-details");
+  const playBtn = document.getElementById("replay-play-btn");
+  const playIcon = document.getElementById("replay-play-icon");
+  const playText = document.getElementById("replay-play-text");
+  const logBox = document.getElementById("replay-log-box");
+  const progressFill = document.getElementById("replay-progress-fill");
+  const currentTimeEl = document.getElementById("replay-current-time");
+  const totalTimeEl = document.getElementById("replay-total-time");
+  
+  isReplaying = false;
+  replayIndex = 0;
+  playIcon.textContent = "▶";
+  playText.textContent = "Play Replay";
+  progressFill.style.width = "0%";
+  currentTimeEl.textContent = "0s";
+  
+  if (!journey || journey.length === 0) {
+    loadingEl.style.display = "block";
+    loadingEl.textContent = "No journey replay timeline logged for this session.";
+    detailsEl.style.display = "none";
+    return;
+  }
+  
+  loadingEl.style.display = "none";
+  detailsEl.style.display = "flex";
+  
+  replayTimeline = journey.sort((a, b) => a.time - b.time);
+  const totalDuration = replayTimeline[replayTimeline.length - 1].time || 10;
+  totalTimeEl.textContent = `${totalDuration}s`;
+  
+  logBox.innerHTML = `<div style="color: var(--text-muted);">Loaded ${replayTimeline.length} timeline actions. Click Play.</div>`;
+  
+  playBtn.onclick = () => {
+    if (isReplaying) {
+      clearInterval(replayInterval);
+      replayInterval = null;
+      isReplaying = false;
+      playIcon.textContent = "▶";
+      playText.textContent = "Resume Replay";
+      addPlayLog("Playback paused.");
+    } else {
+      isReplaying = true;
+      playIcon.textContent = "⏸";
+      playText.textContent = "Pause";
+      
+      if (replayIndex >= replayTimeline.length) {
+        replayIndex = 0;
+        logBox.innerHTML = "";
+      }
+      
+      addPlayLog("Playback started...");
+      
+      let currentTick = replayIndex > 0 ? replayTimeline[replayIndex - 1].time : 0;
+      
+      replayInterval = setInterval(() => {
+        currentTick++;
+        currentTimeEl.textContent = `${currentTick}s`;
+        const percentage = Math.min(100, (currentTick / totalDuration) * 100);
+        progressFill.style.width = `${percentage}%`;
+        
+        while (replayIndex < replayTimeline.length && replayTimeline[replayIndex].time <= currentTick) {
+          const evt = replayTimeline[replayIndex];
+          let color = "var(--text-primary)";
+          if (evt.action === "pasted") color = "var(--accent-orange)";
+          if (evt.action === "deleted") color = "#ef4444";
+          if (evt.action === "typed") color = "var(--secondary)";
+          
+          addPlayLog(`[Time: ${evt.time}s] Action: <span style="color: ${color}; font-weight: bold; text-transform: uppercase;">${evt.action}</span>`);
+          replayIndex++;
+        }
+        
+        if (currentTick >= totalDuration || replayIndex >= replayTimeline.length) {
+          clearInterval(replayInterval);
+          replayInterval = null;
+          isReplaying = false;
+          playIcon.textContent = "▶";
+          playText.textContent = "Replay Again";
+          addPlayLog("Playback completed.");
+        }
+      }, 300);
+    }
+  };
+  
+  function addPlayLog(msg) {
+    const div = document.createElement("div");
+    div.innerHTML = msg;
+    logBox.appendChild(div);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 }
 
 // Draw dynamic custom SVG Radar Chart representing candidate scores

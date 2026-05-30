@@ -48,7 +48,8 @@ class Candidate(Base):
     telemetry_keypresses = Column(Integer, default=0)
     telemetry_deletions = Column(Integer, default=0)
     telemetry_pasted_chars = Column(Integer, default=0)
-    telemetry_idle_time_seconds = Column(Integer, default=0)
+    portfolio_profile = Column(Text, default="{}") # Stored Layer 0 JSON metadata
+    telemetry_journey = Column(Text, default="[]") # JSON timeline event list: [{"time": elapsed, "action": action}]
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -148,6 +149,7 @@ def init_db():
             db.commit()
             
             # Seed Candidate 1: cand_9240 (High Performer)
+            # Seed Candidate 1: cand_9240 (High Performer)
             c1 = Candidate(
                 id="cand_9240", 
                 role_title="Senior Python Architect", 
@@ -158,6 +160,27 @@ def init_db():
                 telemetry_keypresses=280,
                 telemetry_deletions=12,
                 telemetry_pasted_chars=0,
+                portfolio_skills="Python, FastAPI, Postgres, Celery",
+                portfolio_profile="""{
+                    "skills": ["Python", "FastAPI", "PostgreSQL", "Celery", "Docker", "REST APIs"],
+                    "experience_level": "Senior Developer",
+                    "domains": ["Backend Engineering", "Distributed Systems", "Database Optimization"],
+                    "projects": [
+                        {"name": "Async Task Router", "description": "High-throughput messaging dispatcher on RabbitMQ and Python Celery."}
+                    ],
+                    "career_interests": ["System Reliability Engineering", "Distributed Task Queues"],
+                    "strength_signals": ["Clean asynchronous execution flows", "Comprehensive database constraint logic"],
+                    "learning_signals": ["Advanced AST compilation structures", "Dynamic thread locking algorithms"]
+                }""",
+                telemetry_journey="""[
+                    {"time": 2, "action": "typed"},
+                    {"time": 8, "action": "typed"},
+                    {"time": 15, "action": "deleted"},
+                    {"time": 22, "action": "typed"},
+                    {"time": 30, "action": "typed"},
+                    {"time": 45, "action": "typed"},
+                    {"time": 60, "action": "typed"}
+                ]""",
                 telemetry_idle_time_seconds=15
             )
             db.add(c1)
@@ -202,6 +225,26 @@ def init_db():
                 telemetry_keypresses=90,
                 telemetry_deletions=48,
                 telemetry_pasted_chars=420,
+                portfolio_skills="Python, SQLite, HTML, CSS",
+                portfolio_profile="""{
+                    "skills": ["Python", "SQLAlchemy", "Flask", "Redis", "HTML/CSS"],
+                    "experience_level": "Mid-level Engineer",
+                    "domains": ["Fullstack Web Development", "REST API APIs"],
+                    "projects": [
+                        {"name": "Client-Side Form Validator", "description": "A light validation library tracking keyup inputs."}
+                    ],
+                    "career_interests": ["Fullstack UI/UX", "Application Performance Monitoring"],
+                    "strength_signals": ["Robust styling schemas", "Solid visual dashboard structure"],
+                    "learning_signals": ["Deeper optimization of lock contention", "Asynchronous network loop paradigms"]
+                }""",
+                telemetry_journey="""[
+                    {"time": 5, "action": "typed"},
+                    {"time": 18, "action": "pasted"},
+                    {"time": 24, "action": "deleted"},
+                    {"time": 32, "action": "deleted"},
+                    {"time": 40, "action": "pasted"},
+                    {"time": 55, "action": "typed"}
+                ]""",
                 telemetry_idle_time_seconds=60
             )
             db.add(c2)
