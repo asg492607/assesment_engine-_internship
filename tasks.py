@@ -17,7 +17,6 @@ def run_intelligence_module(candidate_id: str, module_name: str):
     and LLM scoring.
     """
     print(f"Starting Celery Worker: {module_name} analysis for candidate {candidate_id}...")
-    time.sleep(1.5) # Simulate workload
     
     db: Session = SessionLocal()
     try:

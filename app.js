@@ -1100,7 +1100,7 @@ async function loadTalentPool() {
   } else {
     rowsContainer.innerHTML = `
       <tr>
-        <td colspan="5" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No candidate reports saved in database yet. Run the simulation to add records!</td>
+        <td colspan="5" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No candidate reports saved in database yet. Run the assessment to add records!</td>
       </tr>
     `;
   }
