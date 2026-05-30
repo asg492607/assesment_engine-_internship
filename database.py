@@ -101,3 +101,90 @@ class IntelligenceReport(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    
+    # Run seed function
+    db = SessionLocal()
+    try:
+        # Check if database is already seeded
+        if db.query(Candidate).count() == 0:
+            print("Seeding database with default recruiter candidates...")
+            
+            # Seed Recruiter Configurations
+            cfg1 = RecruiterConfig(
+                role_title="Senior Python Architect",
+                difficulty_level="senior",
+                weight_creativity=30.0,
+                weight_problem_solving=25.0,
+                weight_communication=20.0,
+                weight_execution=15.0,
+                weight_reasoning=10.0
+            )
+            db.add(cfg1)
+            db.commit()
+            
+            # Seed Candidate 1: cand_9240 (High Performer)
+            c1 = Candidate(id="cand_9240", role_title="Senior Python Architect", difficulty_level="senior", status="completed")
+            db.add(c1)
+            
+            qr1 = QuizResponse(candidate_id="cand_9240", question="Optimizing database queries?", selected_option="Add index constraints and rewrite joins.", score_assigned=95)
+            db.add(qr1)
+            
+            hs1 = HackathonSubmission(candidate_id="cand_9240", code_content="async def main(): pass", lines_count=18, creativity_score=92, problem_solving_score=88)
+            db.add(hs1)
+            
+            it1 = InterviewTranscript(candidate_id="cand_9240", question_asked="Pooling?", answer_given="Yes, using connection pools handles high spikes.", communication_score=90, reasoning_score=85)
+            db.add(it1)
+            
+            ir1 = IntelligenceReport(
+                candidate_id="cand_9240",
+                score_knowledge=95,
+                score_solving=88,
+                score_creativity=92,
+                score_communication=90,
+                score_reasoning=85,
+                score_execution=90,
+                score_career_readiness=92,
+                score_company_match=93,
+                final_weighted_score=90,
+                strengths="Exceptional architectural safety patterns and code execution flow.",
+                weaknesses="Over-engineers helper pipelines."
+            )
+            db.add(ir1)
+            
+            # Seed Candidate 2: cand_7102 (Mid Performer)
+            c2 = Candidate(id="cand_7102", role_title="Senior Python Architect", difficulty_level="senior", status="completed")
+            db.add(c2)
+            
+            qr2 = QuizResponse(candidate_id="cand_7102", question="Optimizing database queries?", selected_option="Add caching layer via Redis.", score_assigned=80)
+            db.add(qr2)
+            
+            hs2 = HackathonSubmission(candidate_id="cand_7102", code_content="def main(): pass", lines_count=8, creativity_score=74, problem_solving_score=75)
+            db.add(hs2)
+            
+            it2 = InterviewTranscript(candidate_id="cand_7102", question_asked="Pooling?", answer_given="I would spin up connection threads manually.", communication_score=78, reasoning_score=72)
+            db.add(it2)
+            
+            ir2 = IntelligenceReport(
+                candidate_id="cand_7102",
+                score_knowledge=80,
+                score_solving=75,
+                score_creativity=74,
+                score_communication=78,
+                score_reasoning=72,
+                score_execution=74,
+                score_career_readiness=76,
+                score_company_match=79,
+                final_weighted_score=76,
+                strengths="Steady execution rhythm, solid understanding of local session caching.",
+                weaknesses="Gaps in scale planning and socket stream pools."
+            )
+            db.add(ir2)
+            
+            db.commit()
+            print("Database seeding completed successfully.")
+    except Exception as e:
+        db.rollback()
+        print(f"Error seeding database: {str(e)}")
+    finally:
+        db.close()
+
