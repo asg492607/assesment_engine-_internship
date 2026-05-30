@@ -192,7 +192,7 @@ async function startQuiz() {
 
 async function fetchQuizQuestion() {
   try {
-    const data = await makeRequest(`/assessment/quiz/next?candidate_id=${currentCandidateId}`);
+    const data = await makeRequest(`/quiz/question?candidate_id=${currentCandidateId}`);
     document.getElementById("quiz-question").textContent = data.question;
     const optsDiv = document.getElementById("quiz-options");
     optsDiv.innerHTML = "";
@@ -203,7 +203,7 @@ async function fetchQuizQuestion() {
       btn.style.textAlign = "left";
       btn.textContent = opt.text;
       btn.onclick = async () => {
-        await makeRequest("/assessment/quiz/answer", {
+        await makeRequest("/quiz/submit", {
           method: "POST",
           body: JSON.stringify({
             candidate_id: currentCandidateId,
@@ -245,7 +245,7 @@ document.getElementById("btn-submit-hackathon").addEventListener("click", async 
   }
   
   try {
-    await makeRequest("/assessment/hackathon/submit", {
+    await makeRequest("/hackathon/submit", {
       method: "POST",
       body: JSON.stringify({
         candidate_id: currentCandidateId,
@@ -268,7 +268,21 @@ document.getElementById("btn-submit-hackathon").addEventListener("click", async 
 let interviewStep = 1;
 async function startInterview() {
   document.getElementById("layer-interview").style.display = "block";
-  addChatMsg("AI Architect", "Welcome. Please explain the architecture of your submitted code and why you chose those specific technologies.");
+  fetchInterviewQuestion();
+}
+
+async function fetchInterviewQuestion() {
+  try {
+    const res = await makeRequest(`/interview/question?candidate_id=${currentCandidateId}`);
+    if (res.status === "completed") {
+      document.getElementById("layer-interview").style.display = "none";
+      finishAssessment();
+    } else {
+      addChatMsg("AI Architect", res.question);
+    }
+  } catch(e) {
+    console.error("Failed to load interview question", e);
+  }
 }
 
 function addChatMsg(sender, text) {
@@ -290,7 +304,7 @@ document.getElementById("btn-submit-interview").addEventListener("click", async 
   input.value = "";
   
   try {
-    const res = await makeRequest("/assessment/interview/chat", {
+    const res = await makeRequest("/interview/reply", {
       method: "POST",
       body: JSON.stringify({
         candidate_id: currentCandidateId,
@@ -298,12 +312,12 @@ document.getElementById("btn-submit-interview").addEventListener("click", async 
       })
     });
     
-    if (res.status === "completed") {
+    if (res.candidate_status === "interview_done") {
       document.getElementById("layer-interview").style.display = "none";
       finishAssessment();
     } else {
-      addChatMsg("AI Architect", res.ai_question);
       interviewStep++;
+      fetchInterviewQuestion();
     }
   } catch (e) { alert("Interview error: " + e.message); }
 });
