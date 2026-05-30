@@ -3,6 +3,41 @@ const API_BASE_URL = "http://localhost:8000/api";
 let currentCandidateId = null;
 let useLocalFallback = false;
 
+// Proctoring Layer Telemetry Tracker
+let proctorTabSwitches = 0;
+let proctorCopyPastes = 0;
+
+// Proctoring Document Event Listeners
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    proctorTabSwitches++;
+    addLog(`Proctoring Alert: Browser tab switch detected (Total: ${proctorTabSwitches})`, "warning");
+    syncProctoringTelemetry();
+  }
+});
+
+document.addEventListener("paste", (e) => {
+  // Only track paste inside input or code textareas
+  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") {
+    proctorCopyPastes++;
+    addLog(`Proctoring Alert: External content insertion detected (Total: ${proctorCopyPastes})`, "warning");
+    syncProctoringTelemetry();
+  }
+});
+
+async function syncProctoringTelemetry() {
+  if (!currentCandidateId || useLocalFallback) return;
+  await makeRequest("/assessment/telemetry", {
+    method: "POST",
+    body: JSON.stringify({
+      candidate_id: currentCandidateId,
+      tab_switches: proctorTabSwitches,
+      copy_pastes: proctorCopyPastes
+    })
+  });
+}
+
+
 // Layer Details Technical Database
 const LAYERS_DB = {
   1: {
@@ -275,7 +310,12 @@ startSimBtn.addEventListener("click", async () => {
   simulationState.difficulty = difficultySelect.value;
   const portfolioText = document.getElementById("portfolio-skills").value;
   
+  // Reset proctoring variables for new session
+  proctorTabSwitches = 0;
+  proctorCopyPastes = 0;
+  
   addLog("--- INITIALIZING ASSESSMENT ENGINE PIPELINE ---", "info");
+  addLog("Assessment Integrity Layer Activated.", "success");
   addLog(`Layer 1: Parsing skills from portfolio graph: [${portfolioText}]`, "info");
   
   // Try real API first
@@ -408,6 +448,7 @@ async function startQuiz(quizStep = 1) {
     optionsBox.appendChild(btn);
   });
 }
+
 
 
 // Layer 3 Hackathon
@@ -637,6 +678,31 @@ function renderCandidateReport(reportData) {
   
   document.getElementById("bar-reasoning").style.width = `${b.reasoning_intelligence}%`;
   document.getElementById("score-val-reasoning").textContent = `${b.reasoning_intelligence}%`;
+  
+  // Render proctoring assessment integrity metrics
+  const authScore = b.authenticity_score !== undefined ? b.authenticity_score : 100;
+  const integrityStatus = b.assessment_integrity || "Low Risk";
+  
+  document.getElementById("bar-authenticity").style.width = `${authScore}%`;
+  document.getElementById("score-val-authenticity").textContent = `${authScore}%`;
+  
+  const badge = document.getElementById("integrity-risk-badge");
+  if (badge) {
+    badge.textContent = integrityStatus;
+    if (integrityStatus === "Low Risk") {
+      badge.style.background = "rgba(16, 185, 129, 0.15)";
+      badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+      badge.style.color = "var(--secondary)";
+    } else if (integrityStatus === "Medium Risk") {
+      badge.style.background = "rgba(245, 158, 11, 0.15)";
+      badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+      badge.style.color = "var(--accent-orange)";
+    } else {
+      badge.style.background = "rgba(239, 68, 68, 0.15)";
+      badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+      badge.style.color = "#ef4444";
+    }
+  }
   
   // Render dynamic SVG Radar chart profile
   drawRadarChart(b);

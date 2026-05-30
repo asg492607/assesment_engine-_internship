@@ -122,6 +122,18 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
             report = IntelligenceReport(candidate_id=candidate_id)
             db.add(report)
             
+        # Calculate Authenticity & Integrity Risk Level
+        switches = candidate.telemetry_tab_switches or 0
+        pastes = candidate.telemetry_copy_pastes or 0
+        auth_score = max(30, 100 - (switches * 10) - (pastes * 15))
+        
+        if auth_score >= 85:
+            risk_level = "Low Risk"
+        elif auth_score >= 60:
+            risk_level = "Medium Risk"
+        else:
+            risk_level = "High Risk"
+            
         report.score_knowledge = module_scores["Knowledge"]
         report.score_solving = module_scores["Problem Solving"]
         report.score_creativity = module_scores["Creativity"]
@@ -130,13 +142,16 @@ def compile_final_scores(results_list: list, candidate_id: str, weights: dict):
         report.score_execution = module_scores["Execution"]
         report.score_career_readiness = module_scores["Career Readiness"]
         report.score_company_match = module_scores["Company Match"]
+        report.score_authenticity = int(auth_score)
+        report.integrity_risk_level = risk_level
+        
         report.final_weighted_score = final_score
         report.strengths = strengths
         report.weaknesses = weaknesses
         
         candidate.status = "completed"
         db.commit()
-        print(f"IntelligenceReport persisted for candidate {candidate_id}. Match score: {final_score}%")
+        print(f"IntelligenceReport persisted for candidate {candidate_id}. Match score: {final_score}%, Authenticity: {auth_score}%, Risk: {risk_level}")
         
         # Upsert vector score data to Qdrant Vector database
         store_candidate_vector(candidate_id, module_scores, candidate.role_title)

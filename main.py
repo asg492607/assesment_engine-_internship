@@ -57,6 +57,11 @@ class InterviewReplySchema(BaseModel):
     candidate_id: str
     reply_content: str
 
+class TelemetrySchema(BaseModel):
+    candidate_id: str
+    tab_switches: int
+    copy_pastes: int
+
 @app.post("/api/assessment/generate")
 def generate_assessment(config: RecruiterConfigSchema, db: Session = Depends(get_db)):
     """
@@ -345,6 +350,22 @@ def reply_interview(payload: InterviewReplySchema, db: Session = Depends(get_db)
         }
     }
 
+@app.post("/api/assessment/telemetry")
+def log_telemetry(payload: TelemetrySchema, db: Session = Depends(get_db)):
+    """
+    Assessment Integrity & Proctoring Layer. Logs browser tab switching
+    and copy-paste volume into PostgreSQL.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    candidate.telemetry_tab_switches = payload.tab_switches
+    candidate.telemetry_copy_pastes = payload.copy_pastes
+    db.commit()
+    print(f"Logged proctoring telemetry for candidate {payload.candidate_id}: switches={payload.tab_switches}, pastes={payload.copy_pastes}")
+    return {"status": "success"}
+
 @app.post("/api/assessment/trigger_analysis")
 def trigger_analysis(candidate_id: str, db: Session = Depends(get_db)):
     """
@@ -489,7 +510,9 @@ def get_report(candidate_id: str, db: Session = Depends(get_db)):
             "execution_intelligence": report.score_execution,
             "reasoning_intelligence": report.score_reasoning,
             "career_readiness": report.score_career_readiness,
-            "company_match": report.score_company_match
+            "company_match": report.score_company_match,
+            "authenticity_score": report.score_authenticity,
+            "assessment_integrity": report.integrity_risk_level
         },
         "report_feedback": {
             "strengths": report.strengths,
