@@ -231,6 +231,16 @@ async function fetchQuizQuestion() {
 async function startHackathon() {
   document.getElementById("layer-hackathon").style.display = "block";
   hackJourney = [];
+  
+  try {
+    const res = await fetch(`/api/hackathon/prompt?candidate_id=${currentCandidateId}`);
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById("hackathon-dynamic-prompt").innerText = data.prompt;
+    }
+  } catch (e) {
+    console.error("Failed to load AI prompt", e);
+  }
 }
 
 document.getElementById("btn-submit-hackathon").addEventListener("click", async () => {

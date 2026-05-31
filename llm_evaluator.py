@@ -218,3 +218,34 @@ class LLMJudge:
         if not llm_result:
             raise ValueError(f"{PROVIDER_NAME} API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
         return llm_result
+
+    @classmethod
+    def generate_job_assessment(cls, role_title: str, skills: str, difficulty: str) -> dict:
+        """
+        Dynamically generates the Hackathon Prompt and a 3-question UI/UX Multiple Choice Quiz
+        specifically tailored to the job posting.
+        """
+        system = """You are an expert Principal UI/UX Design Recruiter. 
+You must generate an assessment for a design job.
+Return EXACTLY a JSON object with this schema:
+{
+    "hackathon_prompt": "A clear 2-3 sentence design challenge.",
+    "quiz_questions": [
+        {
+            "question": "Question text",
+            "options": [
+                {"text": "Correct Option", "score": 95},
+                {"text": "Okay Option", "score": 50},
+                {"text": "Wrong Option", "score": 10}
+            ]
+        }
+    ]
+}
+The quiz_questions array MUST contain exactly 3 questions.
+"""
+        prompt = f"Role: {role_title}\nRequired Skills: {skills}\nDifficulty Level: {difficulty}\nGenerate the UI/UX design assessment JSON."
+        
+        llm_result = cls._call_llm(prompt, system)
+        if not llm_result:
+            raise ValueError("LLM API call failed to generate dynamic assessment.")
+        return llm_result

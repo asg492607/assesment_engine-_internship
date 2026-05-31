@@ -131,7 +131,28 @@ def build_portfolio_profile(skills_input: str, difficulty: str) -> str:
 @app.post("/api/jobs")
 def create_job(job: JobPostingSchema, db: Session = Depends(get_db)):
     """Recruiter creates a new Job Posting."""
-    db_job = JobPosting(**job.dict())
+    try:
+        assessment_data = LLMJudge.generate_job_assessment(job.role_title, job.portfolio_skills, job.difficulty_level)
+        prompt = assessment_data.get("hackathon_prompt", f"Design a prototype for a {job.role_title}.")
+        quiz = json.dumps(assessment_data.get("quiz_questions", []))
+    except Exception as e:
+        print("Failed to generate dynamic assessment:", e)
+        prompt = f"Design a prototype for a {job.role_title}."
+        quiz = "[]"
+        
+    db_job = JobPosting(
+        role_title=job.role_title,
+        description=job.description,
+        difficulty_level=job.difficulty_level,
+        weight_creativity=job.weight_creativity,
+        weight_problem_solving=job.weight_problem_solving,
+        weight_communication=job.weight_communication,
+        weight_execution=job.weight_execution,
+        weight_reasoning=job.weight_reasoning,
+        portfolio_skills=job.portfolio_skills,
+        generated_hackathon_prompt=prompt,
+        generated_quiz_json=quiz
+    )
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
@@ -177,128 +198,52 @@ def apply_to_job(payload: ApplyJobSchema, db: Session = Depends(get_db)):
         "message": f"Application started for {job.role_title}."
     }
 
-# ADAPTIVE MULTI-LEVEL QUIZ QUESTION BANK
-# Difficulty Scale: 1 (Simplest) to 5 (Hardest)
-QUIZ_BANK = {
-    "default": {
-        1: {
-            "question": "What does a Python list comprehension do?",
-            "options": [
-                {"text": "Creates a new list by applying an expression to each item in an existing iterable.", "score": 95},
-                {"text": "Compiles a python script into bytecode statically.", "score": 30},
-                {"text": "Compresses memory storage of arrays dynamically.", "score": 50}
-            ]
-        },
-        2: {
-            "question": "What is the primary function of index lookup in relational databases?",
-            "options": [
-                {"text": "To speed up data retrieval operations by using lookup structures.", "score": 95},
-                {"text": "To encrypt database columns securely against unauthorized table access.", "score": 40},
-                {"text": "To enforce unique primary keys automatically inside every table.", "score": 70}
-            ]
-        },
-        3: {
-            "question": "Which HTTP status code represents a successful REST payload creation?",
-            "options": [
-                {"text": "201 Created", "score": 95},
-                {"text": "200 OK", "score": 80},
-                {"text": "202 Accepted", "score": 70}
-            ]
-        },
-        4: {
-            "question": "How would you optimize a slow database query involving a massive join operation?",
-            "options": [
-                {"text": "Add index constraints on foreign keys and rewrite the query using a specific execution path.", "score": 95},
-                {"text": "Add memory caching via Redis to completely bypass the database layer.", "score": 80},
-                {"text": "Split the massive table into several sub-tables manually and run queries in parallel.", "score": 65}
-            ]
-        },
-        5: {
-            "question": "How do you handle deadlocks in heavy transaction loops in PostgreSQL?",
-            "options": [
-                {"text": "Order lock acquisitions consistently and set short lock timeouts to retry transactions.", "score": 95},
-                {"text": "Increase shared buffers and disable autovacuum completely on tables.", "score": 30},
-                {"text": "Use read replicas to perform write queries asynchronously.", "score": 50}
-            ]
-        }
-    },
-    "javascript": {
-        1: {
-            "question": "What is the difference between 'let' and 'var' in JS?",
-            "options": [
-                {"text": "'let' is block-scoped, while 'var' is function-scoped.", "score": 95},
-                {"text": "'var' is immutable while 'let' can change values.", "score": 30},
-                {"text": "There is no functional difference; they are syntactic aliases.", "score": 40}
-            ]
-        },
-        2: {
-            "question": "What does Promise.all() do?",
-            "options": [
-                {"text": "Runs multiple async operations in parallel and waits for all of them to resolve.", "score": 95},
-                {"text": "Executes promises sequentially in block loops.", "score": 40},
-                {"text": "Catches promise rejection and ignores all errors.", "score": 50}
-            ]
-        },
-        3: {
-            "question": "How do you prevent useless component re-renders in React?",
-            "options": [
-                {"text": "Use React.memo(), useMemo(), and useCallback() hooks.", "score": 95},
-                {"text": "Call forceUpdate() inside render hooks.", "score": 35},
-                {"text": "Save all variable structures in document cookies.", "score": 25}
-            ]
-        },
-        4: {
-            "question": "Explain Event Loop behavior in Node.js.",
-            "options": [
-                {"text": "Offloads blocking calls to a thread pool and executes callbacks in phases.", "score": 95},
-                {"text": "Forces Javascript execution to run fully multithreaded.", "score": 40},
-                {"text": "Halts execution until files are written directly to memory.", "score": 30}
-            ]
-        },
-        5: {
-            "question": "How do you build custom garbage collection checks in V8?",
-            "options": [
-                {"text": "Track allocations, use WeakRef/FinalizationRegistry, and run with --expose-gc to monitor heap.", "score": 95},
-                {"text": "Call delete on all global variables continuously.", "score": 30},
-                {"text": "Restart the Node.js process after every client connection.", "score": 20}
-            ]
-        }
-    }
-}
-
 @app.get("/api/quiz/question")
 def get_quiz_question(candidate_id: str, db: Session = Depends(get_db)):
     """
-    Layer 2: Adaptive Quiz Engine. Serves a custom question based on Candidate history.
-    Detects portfolio skill tags (e.g. JS/React) and pulls matching difficulty index.
+    Layer 2: Adaptive Quiz Engine. Serves a dynamically AI-generated question.
     """
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
-    # Check if candidate completed the quiz steps
     if candidate.current_quiz_step > 3:
         return {"status": "completed", "message": "Quiz completed."}
         
-    # Choose topic based on portfolio skills: React/JS vs Python/default
-    skills_str = candidate.portfolio_skills.lower()
-    topic = "default"
-    if "javascript" in skills_str or "react" in skills_str or "node" in skills_str:
-        topic = "javascript"
-        
-    diff = candidate.current_quiz_difficulty
-    # Fallback to nearest scale boundaries
-    diff = max(1, min(5, diff))
+    job = db.query(JobPosting).filter(JobPosting.id == candidate.job_id).first()
     
-    question_data = QUIZ_BANK[topic][diff]
+    try:
+        quiz_data = json.loads(job.generated_quiz_json)
+        step_index = candidate.current_quiz_step - 1
+        if not quiz_data or step_index >= len(quiz_data):
+            raise ValueError("No valid quiz data")
+        question_data = quiz_data[step_index]
+    except Exception:
+        question_data = {
+            "question": f"What is a core principle of UI/UX for a {candidate.role_title}?",
+            "options": [
+                {"text": "Understanding user needs and usability.", "score": 95},
+                {"text": "Using the most expensive design tools.", "score": 30},
+                {"text": "Copying existing designs exactly.", "score": 10}
+            ]
+        }
     
     return {
         "candidate_id": candidate_id,
         "step": candidate.current_quiz_step,
-        "difficulty": diff,
+        "difficulty": candidate.current_quiz_difficulty,
         "question": question_data["question"],
         "options": question_data["options"]
     }
+
+@app.get("/api/hackathon/prompt")
+def get_hackathon_prompt(candidate_id: str, db: Session = Depends(get_db)):
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    job = db.query(JobPosting).filter(JobPosting.id == candidate.job_id).first()
+    return {"prompt": job.generated_hackathon_prompt if job else "Design a prototype for your role."}
 
 @app.post("/api/quiz/submit")
 def submit_quiz_answer(payload: QuizAnswerSchema, db: Session = Depends(get_db)):
@@ -389,22 +334,22 @@ def generate_dynamic_interview_question(candidate, db: Session) -> str:
         quiz_res = db.query(QuizResponse).filter(QuizResponse.candidate_id == candidate.id).all()
         quiz_score = sum([q.score_assigned for q in quiz_res]) / len(quiz_res) if quiz_res else 75
         if quiz_score < 80:
-            return "Your quiz results show some gaps in database and performance concepts. Can you explain how you would analyze and optimize a slow query execution plan manually?"
+            return "Your design fundamentals quiz results show some areas for improvement. Can you explain your approach to ensuring web accessibility (a11y) in your prototypes?"
         else:
-            return "You selected the optimal database query paths in the quiz. How would you design a connection pooling strategy to manage high peaks of database traffic?"
+            return "You selected excellent design patterns in the quiz. How would you defend a controversial UI layout decision to a stakeholder who prefers a traditional approach?"
             
-    # Turn 2: Target hackathon code implementation architecture
+    # Turn 2: Target hackathon prototype submission
     elif step == 2:
         hack_sub = db.query(HackathonSubmission).filter(HackathonSubmission.candidate_id == candidate.id).first()
-        solve_score = hack_sub.problem_solving_score if hack_sub else 70
-        if solve_score < 80:
-            return "Looking at your hackathon code submission, it uses a very direct, synchronous/standard approach. How would you refactor this code to support asynchronous processing, rate limiting, or higher concurrency?"
+        usability_score = hack_sub.usability_score if hack_sub else 70
+        if usability_score < 80:
+            return "Looking at your UI prototype submission, the visual hierarchy is decent, but usability could be tighter. How would you conduct user testing to refine the layout?"
         else:
-            return "Your hackathon submission had great structure. How would you handle scaling this code across multiple distributed worker nodes or caching state using Redis?"
+            return "Your prototype submission had fantastic usability and aesthetics. How did you decide on the color palette and typography scale for this specific project?"
             
-    # Turn 3: Target deployment, monitoring, and production safety trade-offs
+    # Turn 3: Target deployment/hand-off
     else:
-        return "Finally, when deploying this solution to a highly available production environment, how do you handle monitoring, fallback safety, and logging for unexpected exceptions?"
+        return "Finally, when handing off your high-fidelity designs to the frontend engineering team, what documentation and design tokens do you provide to ensure pixel-perfect implementation?"
 
 @app.get("/api/interview/question")
 def get_interview_question(candidate_id: str, db: Session = Depends(get_db)):

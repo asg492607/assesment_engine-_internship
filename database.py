@@ -29,6 +29,8 @@ class JobPosting(Base):
     weight_execution = Column(Float, default=15.0)
     weight_reasoning = Column(Float, default=10.0)
     status = Column(String, default="active")
+    generated_hackathon_prompt = Column(Text, default="")
+    generated_quiz_json = Column(Text, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
     
     candidates = relationship("Candidate", back_populates="job")
