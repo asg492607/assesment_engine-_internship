@@ -234,7 +234,12 @@ async function startHackathon() {
 }
 
 document.getElementById("btn-submit-hackathon").addEventListener("click", async () => {
-  const code = document.getElementById("hackathon-textarea").value;
+  const fileInput = document.getElementById("hackathon-file");
+  const rationale = document.getElementById("hackathon-textarea").value;
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    return alert("Please upload a screenshot of your prototype.");
+  }
   
   let realIdleTime = 0;
   if (hackJourney.length > 1) {
@@ -244,22 +249,37 @@ document.getElementById("btn-submit-hackathon").addEventListener("click", async 
     }
   }
   
-  try {
-    await makeRequest("/hackathon/submit", {
-      method: "POST",
-      body: JSON.stringify({
-        candidate_id: currentCandidateId,
-        code_content: code,
-        keypresses: hackKeypresses,
-        deletions: hackDeletions,
-        pasted_chars: hackPastedChars,
-        idle_time: realIdleTime,
-        journey: hackJourney
-      })
-    });
-    document.getElementById("layer-hackathon").style.display = "none";
-    startInterview();
-  } catch (e) { alert("Error submitting hackathon: " + e.message); }
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = async function(e) {
+    const b64Data = e.target.result.split(',')[1];
+    
+    try {
+      document.getElementById("btn-submit-hackathon").textContent = "Uploading & Analyzing...";
+      await makeRequest("/hackathon/submit", {
+        method: "POST",
+        body: JSON.stringify({
+          candidate_id: currentCandidateId,
+          design_image_b64: b64Data,
+          design_rationale: rationale,
+          keypresses: hackKeypresses,
+          deletions: hackDeletions,
+          pasted_chars: hackPastedChars,
+          idle_time: realIdleTime,
+          journey: hackJourney
+        })
+      });
+      document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype";
+      document.getElementById("layer-hackathon").style.display = "none";
+      startInterview();
+    } catch (err) { 
+      alert("Error submitting prototype: " + err.message); 
+      document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype";
+    }
+  };
+  
+  reader.readAsDataURL(file);
 });
 
 // ---------------------------------------------------------

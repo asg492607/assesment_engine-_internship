@@ -122,10 +122,16 @@
 
       <!-- Hackathon -->
       <div id="layer-hackathon" class="glass-panel" style="margin-bottom: 2rem; display: none;">
-        <h3 style="color: #059669; margin-bottom: 1rem;">Module 2: Practical Hackathon</h3>
-        <p style="margin-bottom: 1rem;">Implement the logic requested by the prompt. Your keystrokes and idle times are actively proctored.</p>
-        <textarea id="hackathon-textarea" rows="12" style="width: 100%; font-family: monospace; padding: 1rem; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
-        <button id="btn-submit-hackathon" class="btn btn-primary" style="margin-top: 1rem; padding: 0.75rem 2rem;">Submit Project</button>
+        <h3 style="color: #059669; margin-bottom: 1rem;">Module 2: UI/UX Prototyping</h3>
+        <p style="margin-bottom: 1rem;">Design a prototype according to the job requirements. Upload a high-resolution screenshot of your work.</p>
+        
+        <label for="hackathon-file" style="display:block; font-weight: 600; margin-bottom: 0.5rem;">Upload Prototype Screenshot (PNG/JPG)</label>
+        <input type="file" id="hackathon-file" accept="image/png, image/jpeg" style="margin-bottom: 1rem; width: 100%; padding: 0.5rem;">
+        
+        <label for="hackathon-textarea" style="display:block; font-weight: 600; margin-bottom: 0.5rem;">Design Rationale</label>
+        <textarea id="hackathon-textarea" rows="4" style="width: 100%; font-family: sans-serif; padding: 1rem; border: 1px solid #cbd5e1; border-radius: 6px;" placeholder="Explain your design decisions, visual hierarchy, and usability patterns..."></textarea>
+        
+        <button id="btn-submit-hackathon" class="btn btn-primary" style="margin-top: 1rem; padding: 0.75rem 2rem;">Submit Prototype</button>
       </div>
 
       <!-- Interview -->

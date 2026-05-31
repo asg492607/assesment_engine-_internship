@@ -84,10 +84,11 @@ class HackathonSubmission(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(String, ForeignKey("candidates.id"))
-    code_content = Column(Text)
-    lines_count = Column(Integer)
-    creativity_score = Column(Integer)
-    problem_solving_score = Column(Integer)
+    design_image_b64 = Column(Text)
+    design_rationale = Column(Text)
+    usability_score = Column(Integer)
+    aesthetics_score = Column(Integer)
+    accessibility_score = Column(Integer)
     submitted_at = Column(DateTime, default=datetime.utcnow)
     
     candidate = relationship("Candidate", back_populates="hackathon_submission")

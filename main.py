@@ -59,7 +59,8 @@ class QuizAnswerSchema(BaseModel):
 
 class HackathonSubmitSchema(BaseModel):
     candidate_id: str
-    code_content: str
+    design_image_b64: str
+    design_rationale: str
     keypresses: int = 0
     deletions: int = 0
     pasted_chars: int = 0
@@ -348,24 +349,22 @@ def submit_quiz_answer(payload: QuizAnswerSchema, db: Session = Depends(get_db))
 @app.post("/api/hackathon/submit")
 def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_db)):
     """
-    Layer 3: Live AI Hackathon. Saves code submission and analyzes structure metrics.
-    Also archives the file locally simulating Layer 7 MinIO storage.
+    Layer 3: Live Multimodal AI Hackathon. Evaluates UI/UX prototype screenshots.
     """
     candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
-    lines = len([l for l in payload.code_content.split("\n") if l.strip()])
-    
-    # Evaluate code submission using LLM Judge with compiler AST fallback
-    eval_res = LLMJudge.evaluate_hackathon(payload.code_content, candidate.role_title)
+    # Evaluate design submission using Vision LLM Judge
+    eval_res = LLMJudge.evaluate_hackathon(payload.design_rationale, payload.design_image_b64, candidate.role_title)
     
     submission = HackathonSubmission(
         candidate_id=payload.candidate_id,
-        code_content=payload.code_content,
-        lines_count=lines,
-        creativity_score=eval_res.get("architecture", 75),
-        problem_solving_score=eval_res.get("problem_solving", 75)
+        design_image_b64=payload.design_image_b64,
+        design_rationale=payload.design_rationale,
+        usability_score=eval_res.get("usability_score", 75),
+        aesthetics_score=eval_res.get("aesthetics_score", 75),
+        accessibility_score=eval_res.get("accessibility_score", 75)
     )
     db.add(submission)
     
@@ -379,18 +378,8 @@ def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_d
     candidate.status = "hackathon_done"
     db.commit()
     
-    # Save the file to disk representing MinIO archival
-    try:
-        storage_dir = os.path.join(os.getcwd(), "minio_storage", "hackathon")
-        os.makedirs(storage_dir, exist_ok=True)
-        file_path = os.path.join(storage_dir, f"{payload.candidate_id}_source.py")
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(payload.code_content)
-        print(f"Archived candidate code submission to MinIO: {file_path}")
-    except Exception as e:
-        print(f"Error archiving to MinIO local folder: {str(e)}")
-        
-    return {"status": "success", "candidate_status": candidate.status, "lines_processed": lines}
+    return {"status": "success", "candidate_status": candidate.status}
+
 
 def generate_dynamic_interview_question(candidate, db: Session) -> str:
     step = candidate.current_interview_step or 1

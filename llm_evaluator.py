@@ -148,17 +148,62 @@ class LLMJudge:
             print(f"LLM API Call failed ({PROVIDER_NAME}): {str(e)}.")
             return None
 
-    @classmethod
-    def evaluate_hackathon(cls, code_content: str, role_title: str) -> dict:
-        """
-        Invokes LLM Judge to evaluate Code Quality, Architecture and Execution.
-        """
-        system = "You are an expert Principal AI Code Judge. Evaluate the submitted code and return a JSON object with scores: problem_solving (0-100), execution (0-100), architecture (0-100), and a string summary (max 25 words)."
-        prompt = f"Role: {role_title}\nCode Submission:\n{code_content}\nEvaluate syntax, robustness, modularity, and algorithmic efficiency."
+    @staticmethod
+    def _call_llm_vision(prompt: str, system_prompt: str, base64_image: str) -> dict:
+        if not LLM_API_KEY:
+            return None
+            
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {LLM_API_KEY}"
+        }
         
-        llm_result = cls._call_llm(prompt, system)
+        data = {
+            "model": "llama-3.2-11b-vision-preview",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1
+        }
+        
+        req = urllib.request.Request(
+            LLM_API_URL, 
+            data=json.dumps(data).encode("utf-8"), 
+            headers=headers,
+            method="POST"
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=20.0) as response:
+                res_body = response.read().decode("utf-8")
+                res_json = json.loads(res_body)
+                content = res_json["choices"][0]["message"]["content"]
+                # Sometimes Groq wraps json in markdown tags
+                if content.startswith("```json"):
+                    content = content[7:-3]
+                elif content.startswith("```"):
+                    content = content[3:-3]
+                return json.loads(content)
+        except Exception as e:
+            print(f"Vision API Call failed ({PROVIDER_NAME}): {str(e)}.")
+            return None
+
+    @classmethod
+    def evaluate_hackathon(cls, design_rationale: str, base64_image: str, role_title: str) -> dict:
+        """
+        Invokes Multimodal LLM Judge to evaluate Design Prototypes.
+        """
+        system = "You are an expert Principal UI/UX Design Judge. Evaluate the submitted design prototype and return a JSON object with scores: usability_score (0-100), aesthetics_score (0-100), accessibility_score (0-100), and a string summary (max 25 words)."
+        prompt = f"Role: {role_title}\nCandidate Design Rationale:\n{design_rationale}\nEvaluate usability patterns, visual hierarchy (aesthetics), and accessibility constraints from this screenshot."
+        
+        llm_result = cls._call_llm_vision(prompt, system, base64_image)
         if not llm_result:
-            raise ValueError(f"{PROVIDER_NAME} API key is missing or LLM API call failed. Real LLM evaluation is strictly required.")
+            raise ValueError(f"{PROVIDER_NAME} API key is missing or Vision LLM API call failed. Real Multimodal evaluation is strictly required.")
         return llm_result
 
     @classmethod
