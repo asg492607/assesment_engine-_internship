@@ -86,7 +86,7 @@ class HackathonSubmission(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(String, ForeignKey("candidates.id"))
-    design_image_b64 = Column(Text)
+    design_images_json = Column(Text)
     design_rationale = Column(Text)
     usability_score = Column(Integer)
     aesthetics_score = Column(Integer)

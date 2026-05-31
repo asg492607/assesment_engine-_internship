@@ -149,7 +149,7 @@ class LLMJudge:
             return None
 
     @staticmethod
-    def _call_llm_vision(prompt: str, system_prompt: str, base64_image: str) -> dict:
+    def _call_llm_vision(prompt: str, system_prompt: str, base64_images: list) -> dict:
         if not LLM_API_KEY:
             return None
             
@@ -158,14 +158,15 @@ class LLMJudge:
             "Authorization": f"Bearer {LLM_API_KEY}"
         }
         
+        user_content = [{"type": "text", "text": prompt}]
+        for b64 in base64_images:
+            user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+            
         data = {
             "model": "llama-3.2-11b-vision-preview",
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
+                {"role": "user", "content": user_content}
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.1
@@ -194,14 +195,14 @@ class LLMJudge:
             return None
 
     @classmethod
-    def evaluate_hackathon(cls, design_rationale: str, base64_image: str, role_title: str) -> dict:
+    def evaluate_hackathon(cls, design_rationale: str, base64_images: list, role_title: str) -> dict:
         """
-        Invokes Multimodal LLM Judge to evaluate Design Prototypes.
+        Invokes Multimodal LLM Judge to evaluate chronological Design Prototypes.
         """
-        system = "You are an expert Principal UI/UX Design Judge. Evaluate the submitted design prototype and return a JSON object with scores: usability_score (0-100), aesthetics_score (0-100), accessibility_score (0-100), and a string summary (max 25 words)."
-        prompt = f"Role: {role_title}\nCandidate Design Rationale:\n{design_rationale}\nEvaluate usability patterns, visual hierarchy (aesthetics), and accessibility constraints from this screenshot."
+        system = "You are an expert Principal UI/UX Design Judge. Evaluate the submitted chronological design prototype frames and return a JSON object with scores: usability_score (0-100), aesthetics_score (0-100), accessibility_score (0-100), and a string summary (max 25 words)."
+        prompt = f"Role: {role_title}\nCandidate Design Rationale:\n{design_rationale}\nAnalyze these chronological screenshots representing the candidate's design process. Grade their final aesthetics, their usability choices, and evaluate their workflow efficiency."
         
-        llm_result = cls._call_llm_vision(prompt, system, base64_image)
+        llm_result = cls._call_llm_vision(prompt, system, base64_images)
         if not llm_result:
             raise ValueError(f"{PROVIDER_NAME} API key is missing or Vision LLM API call failed. Real Multimodal evaluation is strictly required.")
         return llm_result

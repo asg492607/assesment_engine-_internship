@@ -243,13 +243,60 @@ async function startHackathon() {
   }
 }
 
+let screenStream = null;
+let captureInterval = null;
+let screenCaptures = [];
+
+document.getElementById("btn-start-screenshare").addEventListener("click", async () => {
+    try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const videoElement = document.getElementById("screen-video");
+        videoElement.srcObject = screenStream;
+        videoElement.style.display = "block";
+        document.getElementById("btn-start-screenshare").style.display = "none";
+        document.getElementById("btn-submit-hackathon").style.display = "inline-block";
+        document.getElementById("screenshare-status").innerText = "Recording your design journey... (Capturing every 10s)";
+        document.getElementById("screenshare-status").style.color = "#10b981";
+        
+        // Start capture interval
+        captureInterval = setInterval(() => {
+            captureFrame();
+        }, 10000);
+        
+    } catch (e) {
+        alert("Screen sharing is required for the hackathon.");
+    }
+});
+
+function captureFrame() {
+    const videoElement = document.getElementById("screen-video");
+    const canvas = document.getElementById("screen-canvas");
+    if (videoElement.videoWidth === 0) return; // Video not loaded yet
+    canvas.width = videoElement.videoWidth / 2; // scale down
+    canvas.height = videoElement.videoHeight / 2;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+    const b64Full = canvas.toDataURL("image/jpeg", 0.5); // 50% quality compression
+    screenCaptures.push(b64Full.split(',')[1]);
+    
+    // Limit to max 10 frames to avoid crashing LLM payload size limits
+    if (screenCaptures.length > 10) screenCaptures.shift();
+}
+
 document.getElementById("btn-submit-hackathon").addEventListener("click", async () => {
-  const fileInput = document.getElementById("hackathon-file");
   const rationale = document.getElementById("hackathon-textarea").value;
   
-  if (!fileInput.files || fileInput.files.length === 0) {
-    return alert("Please upload a screenshot of your prototype.");
+  if (!screenStream || screenCaptures.length === 0) {
+    if (screenStream) captureFrame(); // Just capture one quickly if they clicked fast
+    else return alert("Please start screen sharing first.");
   }
+  
+  // Capture the final exact frame
+  captureFrame();
+  
+  // Stop tracks
+  screenStream.getTracks().forEach(track => track.stop());
+  clearInterval(captureInterval);
   
   let realIdleTime = 0;
   if (hackJourney.length > 1) {
@@ -259,37 +306,28 @@ document.getElementById("btn-submit-hackathon").addEventListener("click", async 
     }
   }
   
-  const file = fileInput.files[0];
-  const reader = new FileReader();
-  
-  reader.onload = async function(e) {
-    const b64Data = e.target.result.split(',')[1];
-    
-    try {
-      document.getElementById("btn-submit-hackathon").textContent = "Uploading & Analyzing...";
-      await makeRequest("/hackathon/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          candidate_id: currentCandidateId,
-          design_image_b64: b64Data,
-          design_rationale: rationale,
-          keypresses: hackKeypresses,
-          deletions: hackDeletions,
-          pasted_chars: hackPastedChars,
-          idle_time: realIdleTime,
-          journey: hackJourney
-        })
-      });
-      document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype";
-      document.getElementById("layer-hackathon").style.display = "none";
-      startInterview();
-    } catch (err) { 
-      alert("Error submitting prototype: " + err.message); 
-      document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype";
-    }
-  };
-  
-  reader.readAsDataURL(file);
+  try {
+    document.getElementById("btn-submit-hackathon").textContent = "Uploading Journey...";
+    await makeRequest("/hackathon/submit", {
+      method: "POST",
+      body: JSON.stringify({
+        candidate_id: currentCandidateId,
+        design_images_b64: screenCaptures,
+        design_rationale: rationale,
+        keypresses: hackKeypresses,
+        deletions: hackDeletions,
+        pasted_chars: hackPastedChars,
+        idle_time: realIdleTime,
+        journey: hackJourney
+      })
+    });
+    document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype Journey";
+    document.getElementById("layer-hackathon").style.display = "none";
+    startInterview();
+  } catch (err) { 
+    alert("Error submitting prototype: " + err.message); 
+    document.getElementById("btn-submit-hackathon").textContent = "Submit Prototype Journey";
+  }
 });
 
 // ---------------------------------------------------------

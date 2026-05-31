@@ -59,7 +59,7 @@ class QuizAnswerSchema(BaseModel):
 
 class HackathonSubmitSchema(BaseModel):
     candidate_id: str
-    design_image_b64: str
+    design_images_b64: List[str]
     design_rationale: str
     keypresses: int = 0
     deletions: int = 0
@@ -294,18 +294,18 @@ def submit_quiz_answer(payload: QuizAnswerSchema, db: Session = Depends(get_db))
 @app.post("/api/hackathon/submit")
 def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_db)):
     """
-    Layer 3: Live Multimodal AI Hackathon. Evaluates UI/UX prototype screenshots.
+    Layer 3: Live Multimodal AI Hackathon. Evaluates chronological UI/UX prototype screenshots.
     """
     candidate = db.query(Candidate).filter(Candidate.id == payload.candidate_id).first()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
     # Evaluate design submission using Vision LLM Judge
-    eval_res = LLMJudge.evaluate_hackathon(payload.design_rationale, payload.design_image_b64, candidate.role_title)
+    eval_res = LLMJudge.evaluate_hackathon(payload.design_rationale, payload.design_images_b64, candidate.role_title)
     
     submission = HackathonSubmission(
         candidate_id=payload.candidate_id,
-        design_image_b64=payload.design_image_b64,
+        design_images_json=json.dumps(payload.design_images_b64),
         design_rationale=payload.design_rationale,
         usability_score=eval_res.get("usability_score", 75),
         aesthetics_score=eval_res.get("aesthetics_score", 75),
