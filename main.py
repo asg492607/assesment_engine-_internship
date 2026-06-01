@@ -301,7 +301,10 @@ def submit_hackathon(payload: HackathonSubmitSchema, db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Candidate not found")
         
     # Evaluate design submission using Vision LLM Judge
-    eval_res = LLMJudge.evaluate_hackathon(payload.design_rationale, payload.design_images_b64, candidate.role_title)
+    try:
+        eval_res = LLMJudge.evaluate_hackathon(payload.design_rationale, payload.design_images_b64, candidate.role_title)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
     submission = HackathonSubmission(
         candidate_id=payload.candidate_id,
@@ -388,7 +391,10 @@ def reply_interview(payload: InterviewReplySchema, db: Session = Depends(get_db)
     question = generate_dynamic_interview_question(candidate, db)
     
     # Evaluate candidate answer using LLM Judge
-    eval_res = LLMJudge.evaluate_interview(question, payload.reply_content, candidate.role_title)
+    try:
+        eval_res = LLMJudge.evaluate_interview(question, payload.reply_content, candidate.role_title)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
     transcript = InterviewTranscript(
         candidate_id=payload.candidate_id,

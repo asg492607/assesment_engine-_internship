@@ -143,6 +143,10 @@ class LLMJudge:
                 res_body = response.read().decode("utf-8")
                 res_json = json.loads(res_body)
                 content = res_json["choices"][0]["message"]["content"]
+                if content.startswith("```json"):
+                    content = content[7:-3]
+                elif content.startswith("```"):
+                    content = content[3:-3]
                 return json.loads(content)
         except Exception as e:
             print(f"LLM API Call failed ({PROVIDER_NAME}): {str(e)}.")
@@ -199,8 +203,8 @@ class LLMJudge:
         """
         Invokes Multimodal LLM Judge to evaluate chronological Design Prototypes.
         """
-        system = "You are an expert Principal UI/UX Design Judge. Evaluate the submitted chronological design prototype frames and return a JSON object with scores: usability_score (0-100), aesthetics_score (0-100), accessibility_score (0-100), and a string summary (max 25 words)."
-        prompt = f"Role: {role_title}\nCandidate Design Rationale:\n{design_rationale}\nAnalyze these chronological screenshots representing the candidate's design process. Grade their final aesthetics, their usability choices, and evaluate their workflow efficiency."
+        system = "You are an uncompromising, ruthless Principal UI/UX Design Judge. You must heavily penalize poor color contrast, misaligned typography, confusing layouts, or lack of accessibility. Evaluate the chronological prototype frames and return EXACTLY a JSON object: {\"usability_score\": 0-100, \"aesthetics_score\": 0-100, \"accessibility_score\": 0-100, \"summary\": \"max 25 words\"}."
+        prompt = f"Role: {role_title}\nCandidate Design Rationale:\n{design_rationale}\nAnalyze these chronological screenshots of the candidate's workflow. Be ruthlessly strict. Grade final aesthetics, usability choices, and workflow efficiency. Deduct points for any flaws."
         
         llm_result = cls._call_llm_vision(prompt, system, base64_images)
         if not llm_result:
@@ -212,8 +216,8 @@ class LLMJudge:
         """
         Invokes LLM Judge to evaluate candidate interview transcript.
         """
-        system = "You are an expert AI Interview Judge. Evaluate the answer and return a JSON object with scores: reasoning (0-100), confidence (0-100), communication (0-100), decision_quality (0-100), and a string summary (max 25 words)."
-        prompt = f"Role: {role_title}\nQuestion: {question}\nCandidate Answer: {answer}\nEvaluate clarity, reasoning patterns, confidence level, and structural correctness."
+        system = "You are a highly critical, strict AI Design Interviewer. You actively penalize vague answers, buzzwords without substance, and poor reasoning. Return EXACTLY a JSON object: {\"reasoning\": 0-100, \"confidence\": 0-100, \"communication\": 0-100, \"decision_quality\": 0-100, \"summary\": \"max 25 words\"}."
+        prompt = f"Role: {role_title}\nQuestion: {question}\nCandidate Answer: {answer}\nBe extremely strict. Evaluate clarity, defensible reasoning, confidence level, and architectural correctness. Fail them if they give weak answers."
         
         llm_result = cls._call_llm(prompt, system)
         if not llm_result:
@@ -226,23 +230,23 @@ class LLMJudge:
         Dynamically generates the Hackathon Prompt and a 3-question UI/UX Multiple Choice Quiz
         specifically tailored to the job posting.
         """
-        system = """You are an expert Principal UI/UX Design Recruiter. 
-You must generate an assessment for a design job.
+        system = """You are an expert, uncompromising Principal UI/UX Design Recruiter. 
+You must generate a highly challenging, difficult assessment for a design job.
 Return EXACTLY a JSON object with this schema:
 {
-    "hackathon_prompt": "A clear 2-3 sentence design challenge.",
+    "hackathon_prompt": "A rigorous 2-3 sentence design challenge that forces complex UI problem solving.",
     "quiz_questions": [
         {
-            "question": "Question text",
+            "question": "A difficult, highly technical UI/UX theory question",
             "options": [
                 {"text": "Correct Option", "score": 95},
-                {"text": "Okay Option", "score": 50},
+                {"text": "Plausible but flawed Option", "score": 50},
                 {"text": "Wrong Option", "score": 10}
             ]
         }
     ]
 }
-The quiz_questions array MUST contain exactly 3 questions.
+The quiz_questions array MUST contain exactly 3 questions. Do NOT wrap output in markdown, return raw JSON.
 """
         prompt = f"Role: {role_title}\nRequired Skills: {skills}\nDifficulty Level: {difficulty}\nGenerate the UI/UX design assessment JSON."
         
